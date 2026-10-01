@@ -21,6 +21,34 @@ jobs:
           hitch --help >/dev/null
           python -c "import hitchly, hitchly_client, hitch"
 
+  js:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test "tests/js/*.test.mjs"
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-save playwright && npx playwright install --with-deps chromium
+      - name: Browser tests against a real server
+        run: |
+          HITCHLY_TOKEN=ci-token HITCHLY_PORT=8080 HITCHLY_DB=/tmp/e2e.db python -m hitchly serve &
+          sleep 2
+          export BASE_URL=http://127.0.0.1:8080 HITCHLY_TOKEN=ci-token
+          node tests/e2e/tools.cjs
+          node tests/e2e/links.cjs
+
   docker:
     runs-on: ubuntu-latest
     steps:

@@ -25,7 +25,7 @@ API_LINK = re.compile(r"^/api/links/([A-Za-z0-9_-]{1,64})$")
 API_CLICKS = re.compile(r"^/api/links/([A-Za-z0-9_-]{1,64})/clicks\.csv$")
 API_QR = re.compile(r"^/api/links/([A-Za-z0-9_-]{1,64})/qr\.svg$")
 API_STATS = re.compile(r"^/api/links/([A-Za-z0-9_-]{1,64})/stats$")
-CSP = ("default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data: blob:; "
+CSP = ("default-src 'none'; script-src 'self'; worker-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data: blob:; "
        "base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
 STATIC_TYPES = {".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".html": "text/html; charset=utf-8",
                 ".svg": "image/svg+xml", ".json": "application/json", ".ico": "image/x-icon", ".txt": "text/plain; charset=utf-8"}
