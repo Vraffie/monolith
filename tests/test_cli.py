@@ -106,6 +106,20 @@ class CliTests(unittest.TestCase):
         self.ctl("edit", "cli-t1", "--clear-tags")
         self.assertEqual(slugs("--tag", "gamma"), set())
 
+    def test_password_flags(self):
+        os.environ["TEST_LINK_PW"] = "pw-from-env"
+        try:
+            self.ctl("new", "https://example.com", "--slug", "cli-pw", "--password-env", "TEST_LINK_PW")
+            self.assertTrue(json.loads(self.ctl("get", "cli-pw")[1])["protected"])
+            self.assertIn("🔒", self.ctl("ls", "--search", "cli-pw")[1])
+            self.assertEqual(self.ctl("edit", "cli-pw", "--no-password")[0], 0)
+            self.assertFalse(json.loads(self.ctl("get", "cli-pw")[1])["protected"])
+            code, _, err = self.ctl("new", "https://example.com", "--password-env", "UNSET_VAR_XYZ")
+            self.assertEqual(code, 1)
+            self.assertIn("UNSET_VAR_XYZ", err)
+        finally:
+            del os.environ["TEST_LINK_PW"]
+
     def test_max_visits_flags(self):
         self.ctl("new", "https://example.com", "--slug", "cli-cap", "--max-visits", "3")
         self.assertEqual(json.loads(self.ctl("get", "cli-cap")[1])["max_visits"], 3)

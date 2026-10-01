@@ -55,7 +55,8 @@ class Hitchly:
 
     # ---- API ---------------------------------------------------------
     def create(self, url: str, slug: str | None = None, ttl_seconds: int | None = None,
-               tags: list[str] | None = None, max_visits: int | None = None) -> dict:
+               tags: list[str] | None = None, max_visits: int | None = None,
+               password: str | None = None) -> dict:
         body: dict = {"url": url}
         if slug:
             body["slug"] = slug
@@ -65,6 +66,8 @@ class Hitchly:
             body["tags"] = tags
         if max_visits is not None:
             body["max_visits"] = max_visits
+        if password:
+            body["password"] = password
         return self._json("POST", "/api/links", body)
 
     def get(self, slug: str) -> dict:
@@ -85,8 +88,8 @@ class Hitchly:
                 return
 
     def update(self, slug: str, url: str | None = None, ttl_seconds=_UNSET, tags: list[str] | None = None,
-               max_visits=_UNSET) -> dict:
-        """Change url, expiry, tags and/or visit cap (tags=[] clears; ttl_seconds/max_visits=None remove)."""
+               max_visits=_UNSET, password=_UNSET) -> dict:
+        """Change url, expiry, tags and/or visit cap (tags=[] clears; ttl_seconds/max_visits/password=None remove)."""
         body: dict = {}
         if url is not None:
             body["url"] = url
@@ -96,6 +99,8 @@ class Hitchly:
             body["tags"] = tags
         if max_visits is not _UNSET:
             body["max_visits"] = max_visits
+        if password is not _UNSET:
+            body["password"] = password
         return self._json("PATCH", f"/api/links/{urllib.parse.quote(slug)}", body)
 
     def delete(self, slug: str) -> None:

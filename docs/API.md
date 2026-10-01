@@ -36,7 +36,8 @@ Every error is `{"error": "<message>"}`.
   "bot_clicks": 1,
   "tags": ["docs", "launch"],
   "max_visits": null,
-  "exhausted": false
+  "exhausted": false,
+  "protected": false
 }
 ```
 `clicks` counts human visits; `bot_clicks` counts crawlers, link-preview fetchers, scripts, requests without a User-Agent, and every `HEAD`
@@ -48,6 +49,15 @@ Every redirect is recorded, but classified at record time by a User-Agent heuris
 headless browsers count as bots. All `HEAD` requests count as bots. Bots are still redirected normally. This is a heuristic: it reduces
 accidental inflation, it does not stop someone who deliberately sends a browser User-Agent. Existing clicks are classified by a migration.
 
+## Protected links
+A link with a `password` shows a small HTML form (no JavaScript, `noindex`, strict CSP, `Cache-Control: no-store`) instead of redirecting.
+`POST /{slug}` with `password=<value>` (form-encoded, ≤ 2 KiB) redirects with `303` when correct, otherwise re-shows the form.
+- The password is stored only as a salted scrypt hash and is never returned: the API exposes `protected: true/false`.
+- No click is recorded until the password is correct; bots only ever see the form, never the target.
+- Wrong passwords are rate limited per client and slug (`HITCHLY_AUTH_FAIL_LIMIT` per minute, then `429`); while locked out the right password is refused too.
+- Expiry and visit caps are checked first: an expired protected link answers `410`, not a password prompt.
+- This protects against casual sharing, not against anyone who obtains the password. Exports and imports never carry passwords.
+
 ## Endpoints
 
 ### `POST /api/links` — create
@@ -56,6 +66,7 @@ accidental inflation, it does not stop someone who deliberately sends a browser 
 | `url` | string | yes | `http`/`https`, has host, ≤ 2048 chars, no whitespace |
 | `slug` | string | no | 3–32 chars of `A-Z a-z 0-9 _ -`; not reserved (`api`, `health`, `metrics`, `static`, `favicon.ico`, `robots.txt`, case-insensitive) |
 | `ttl_seconds` | integer | no | 1 – 315 360 000 (10 years) |
+| `password` | string | no | 4–128 chars. Visitors must enter it before being redirected (see [Protected links](#protected-links)) |
 | `max_visits` | integer | no | 1 – 1 000 000 000; after this many **human** visits the link answers `410` |
 | `tags` | list of strings | no | ≤ 10; each 1–32 chars of `a-z 0-9 _ -` (lower-cased, de-duplicated) |
 
@@ -91,7 +102,7 @@ Returns the link object, or `404`.
 Days with no clicks are omitted. Up to 5 referrers are returned.
 
 ### `PATCH /api/links/{slug}` — edit
-Body may contain `url`, `ttl_seconds`, `max_visits` (`null` removes the cap; raising it revives an exhausted link) and/or `tags` (replaces the whole list; `[]` clears it); anything else (including `slug`) is a `400`.
+Body may contain `url`, `ttl_seconds`, `max_visits` (`null` removes the cap; raising it revives an exhausted link) `password` (`null` removes protection) and/or `tags` (replaces the whole list; `[]` clears it); anything else (including `slug`) is a `400`.
 `ttl_seconds` restarts the countdown from now; `null` removes the expiry (this also revives an expired link).
 Returns the updated link object.
 

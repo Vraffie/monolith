@@ -29,7 +29,7 @@ claims, not measurements. Nothing here was benchmarked.
 | Bot filtering | ✔ | — | — | — | — | ✔ |
 | Max visits per link | ✔ | — | — | — | — | ✔ |
 | Tags / search | ✔ | — | — | ✔ | — | ✔ |
-| Password-protected links | — | plugin | ✔ | ✔ | — | ✘ |
+| Password-protected links | — | plugin | ✔ | ✔ | — | ✔ |
 | Device-targeted redirects | ✔ | — | — | ✔ | — | ✘ |
 | Custom / multiple domains | ✔ | ✘ | ✔ | ✔ | ◐ | ✘ |
 | Users / accounts / SSO | ◐ | plugin | ✔ | ✔ | ✘ | ✘ (single token) |

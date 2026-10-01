@@ -9,15 +9,18 @@ from .domain import (
     Conflict,
     Link,
     NotFound,
+    PasswordRequired,
     ValidationError,
     generate_slug,
     validate_slug,
     validate_max_visits,
+    validate_password,
     validate_tags,
     validate_ttl,
     validate_url,
 )
 from .bots import is_bot
+from .passwords import hash_password, verify_password
 from .storage import Storage
 
 DAY = 86400
@@ -29,20 +32,22 @@ class LinkService:
         self.clock = clock
 
     def create(self, url: object, slug: object = None, ttl_seconds: object = None,
-               tags: object = None, max_visits: object = None) -> Link:
+               tags: object = None, max_visits: object = None, password: object = None) -> Link:
         url = validate_url(url)
         ttl = validate_ttl(ttl_seconds)
         tag_list = validate_tags(tags)
         cap = validate_max_visits(max_visits)
+        secret = validate_password(password)
+        pw_hash = hash_password(secret) if secret else None
         now = self.clock()
         expires_at = now + ttl if ttl else None
 
         if slug not in (None, ""):
-            return self.storage.create_link(validate_slug(slug), url, now, expires_at, tag_list, cap)
+            return self.storage.create_link(validate_slug(slug), url, now, expires_at, tag_list, cap, pw_hash)
 
         for length in (7, 7, 7, 8, 9):  # collisions are rare; widen if they keep happening
             try:
-                return self.storage.create_link(generate_slug(length), url, now, expires_at, tag_list, cap)
+                return self.storage.create_link(generate_slug(length), url, now, expires_at, tag_list, cap, pw_hash)
             except Conflict:
                 continue
         raise RuntimeError("could not allocate a unique slug")
@@ -51,13 +56,13 @@ class LinkService:
         """Edit a link. Only `url`, `ttl_seconds`, `tags` and `max_visits` may change; the slug is permanent.
 
         `ttl_seconds` restarts the countdown from now; `None` removes the expiry.
-        `tags` replaces the whole tag list.
+        `tags` replaces the whole tag list. `password` sets a new password; `None` removes protection.
         """
-        unknown = set(changes) - {"url", "ttl_seconds", "tags", "max_visits"}
+        unknown = set(changes) - {"url", "ttl_seconds", "tags", "max_visits", "password"}
         if unknown:
             raise ValidationError(f"cannot change: {', '.join(sorted(unknown))}")
         if not changes:
-            raise ValidationError("nothing to update (send url, ttl_seconds, tags and/or max_visits)")
+            raise ValidationError("nothing to update (send url, ttl_seconds, tags, max_visits and/or password)")
         self.get(slug)  # 404 before validating
         update: dict = {}
         if "url" in changes:
@@ -69,6 +74,9 @@ class LinkService:
             update["tags"] = validate_tags(changes["tags"])
         if "max_visits" in changes:
             update["max_visits"] = validate_max_visits(changes["max_visits"])
+        if "password" in changes:
+            secret = validate_password(changes["password"])
+            update["password_hash"] = hash_password(secret) if secret else None
         self.storage.update_link(slug, update)
         return self.get(slug)
 
@@ -92,15 +100,18 @@ class LinkService:
             raise NotFound(slug)
 
     def resolve(self, slug: str, referrer: str | None = None, user_agent: str | None = None,
-                head: bool = False) -> str | None:
+                head: bool = False, password: str | None = None) -> str | None:
         """Return the target URL and record the click.
 
-        Raises NotFound for unknown slugs; returns None if the link has expired or used up its visit cap.
+        Raises NotFound for unknown slugs and PasswordRequired for protected links without the right password
+        (nothing is recorded in that case); returns None if the link has expired or used up its visit cap.
         """
         link = self.get(slug)
         now = self.clock()
         if link.is_expired(now) or link.exhausted:
             return None
+        if link.password_hash and not (password is not None and verify_password(password, link.password_hash)):
+            raise PasswordRequired(wrong=password is not None)
         # HEAD is what scanners and preview fetchers send; a person's browser sends GET.
         stored = self.storage.record_click(link.id, now, referrer, user_agent,
                                            bot=head or is_bot(user_agent), max_visits=link.max_visits)

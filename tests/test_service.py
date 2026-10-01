@@ -1,6 +1,6 @@
 import unittest
 
-from hitchly.domain import Conflict, NotFound, ValidationError
+from hitchly.domain import Conflict, NotFound, PasswordRequired, ValidationError
 from hitchly.service import DAY, LinkService
 from hitchly.storage import Storage
 
@@ -98,6 +98,39 @@ class ServiceTests(unittest.TestCase):
         self.svc.create("https://a.com", slug="exp")
         self.svc.resolve("exp", "https://r/", BROWSER)
         self.assertEqual(self.svc.export_clicks("exp"), [(self.now, "https://r/", BROWSER, False)])
+
+    def test_password_flow(self):
+        link = self.svc.create("https://secret.example", slug="locked", password="hunter22")
+        self.assertNotIn("hunter22", repr(link))
+        self.assertTrue(link.password_hash.startswith("scrypt$"))
+        with self.assertRaises(PasswordRequired) as cm:
+            self.svc.resolve("locked", user_agent=BROWSER)
+        self.assertFalse(cm.exception.wrong)
+        with self.assertRaises(PasswordRequired) as cm:
+            self.svc.resolve("locked", user_agent=BROWSER, password="nope")
+        self.assertTrue(cm.exception.wrong)
+        self.assertEqual(self.svc.get("locked").clicks, 0)  # nothing recorded before success
+        self.assertEqual(self.svc.resolve("locked", user_agent=BROWSER, password="hunter22"), "https://secret.example")
+        self.assertEqual(self.svc.get("locked").clicks, 1)
+
+    def test_password_edit_and_validation(self):
+        self.svc.create("https://a.com", slug="pw2")
+        self.svc.update("pw2", {"password": "abcd1234"})
+        with self.assertRaises(PasswordRequired):
+            self.svc.resolve("pw2", user_agent=BROWSER)
+        self.svc.update("pw2", {"url": "https://b.com"})  # other edits keep the password
+        with self.assertRaises(PasswordRequired):
+            self.svc.resolve("pw2", user_agent=BROWSER)
+        self.svc.update("pw2", {"password": None})
+        self.assertEqual(self.svc.resolve("pw2", user_agent=BROWSER), "https://b.com")
+        for bad in ("abc", "x" * 129, 1234, ""):
+            with self.subTest(bad=bad), self.assertRaises(ValidationError):
+                self.svc.create("https://a.com", password=bad)
+
+    def test_expired_protected_link_is_gone_not_a_password_prompt(self):
+        self.svc.create("https://a.com", slug="pw3", password="abcd1234", ttl_seconds=10)
+        self.now += 11
+        self.assertIsNone(self.svc.resolve("pw3", user_agent=BROWSER))
 
     def test_max_visits_caps_humans_only(self):
         self.svc.create("https://a.com", slug="cap", max_visits=2)

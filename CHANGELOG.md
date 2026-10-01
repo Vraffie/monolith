@@ -11,6 +11,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
   metrics `linkly_*` → `hitchly_*`.
 
 ### Added
+- Password-protected links: salted-scrypt storage, no-JS form, 303 on success, no click until verified, per-client lockout. CLI `--ask-password`/`--password-env`/`--no-password`; UI password field.
 - Max visits: `max_visits` caps human visits (410 afterwards), atomic under concurrency; CLI `--max-visits`/`--no-max-visits`.
 - Tags and search: `tags` on create/PATCH, `tag`/`q` filters on list, `hitch --tag/--search`, UI search (`#tag` or text) and tag field; CSV export/import include tags.
 - Bot filtering: clicks are classified by User-Agent; `clicks` counts humans, `bot_clicks` separately; `include_bots` on stats; `bot` column in CSV; `hitchly_bot_clicks_total` metric. Migration backfills history.

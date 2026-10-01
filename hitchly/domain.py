@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 import secrets
 import string
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
 ALPHABET = string.ascii_letters + string.digits
@@ -26,6 +26,14 @@ class Conflict(Exception):
     """Slug already taken (maps to HTTP 409)."""
 
 
+class PasswordRequired(Exception):
+    """The link is password protected; `wrong` is True if a password was supplied and rejected."""
+
+    def __init__(self, wrong: bool = False) -> None:
+        super().__init__("password required")
+        self.wrong = wrong
+
+
 class NotFound(Exception):
     """Unknown slug (maps to HTTP 404)."""
 
@@ -41,6 +49,7 @@ class Link:
     bot_clicks: int = 0
     tags: tuple[str, ...] = ()
     max_visits: int | None = None
+    password_hash: str | None = field(default=None, repr=False)  # never serialise or log
 
     def is_expired(self, now: int) -> bool:
         return self.expires_at is not None and now >= self.expires_at
@@ -85,6 +94,14 @@ def validate_ttl(ttl: object) -> int | None:
     if isinstance(ttl, bool) or not isinstance(ttl, int) or not 1 <= ttl <= MAX_TTL_SECONDS:
         raise ValidationError("ttl_seconds must be a positive integer (max 10 years)")
     return ttl
+
+
+def validate_password(value: object) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str) or not 4 <= len(value) <= 128:
+        raise ValidationError("password must be 4-128 characters")
+    return value
 
 
 def validate_max_visits(value: object) -> int | None:

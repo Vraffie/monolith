@@ -47,10 +47,12 @@ MIGRATIONS = [
     """,
     # 3: optional cap on human visits
     "ALTER TABLE links ADD COLUMN max_visits INTEGER;",
+    # 4: optional password (stored only as a salted scrypt hash)
+    "ALTER TABLE links ADD COLUMN password_hash TEXT;",
 ]
 
 _LINK_SELECT = """
-SELECT l.id, l.slug, l.url, l.created_at, l.expires_at, l.max_visits,
+SELECT l.id, l.slug, l.url, l.created_at, l.expires_at, l.max_visits, l.password_hash,
        (SELECT COUNT(*) FROM clicks c WHERE c.link_id = l.id AND c.is_bot = 0) AS clicks,
        (SELECT COUNT(*) FROM clicks c WHERE c.link_id = l.id AND c.is_bot = 1) AS bot_clicks,
        (SELECT group_concat(t.tag, ',') FROM link_tags t WHERE t.link_id = l.id) AS tags
@@ -61,7 +63,7 @@ FROM links l
 def _row_to_link(row: sqlite3.Row) -> Link:
     return Link(row["id"], row["slug"], row["url"], row["created_at"], row["expires_at"], row["clicks"], row["bot_clicks"],
                 tuple(sorted((row["tags"] or "").split(","))) if row["tags"] else (),
-                row["max_visits"])
+                row["max_visits"], row["password_hash"])
 
 
 class Storage:
@@ -113,18 +115,20 @@ class Storage:
                 conn.close()
 
     def create_link(self, slug: str, url: str, created_at: int, expires_at: int | None,
-                    tags: tuple[str, ...] = (), max_visits: int | None = None) -> Link:
+                    tags: tuple[str, ...] = (), max_visits: int | None = None,
+                    password_hash: str | None = None) -> Link:
         with self._conn() as conn:
             try:
                 cur = conn.execute(
-                    "INSERT INTO links (slug, url, created_at, expires_at, max_visits) VALUES (?, ?, ?, ?, ?)",
-                    (slug, url, created_at, expires_at, max_visits),
+                    "INSERT INTO links (slug, url, created_at, expires_at, max_visits, password_hash) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    (slug, url, created_at, expires_at, max_visits, password_hash),
                 )
             except sqlite3.IntegrityError:
                 raise Conflict(slug) from None
             conn.executemany("INSERT INTO link_tags (link_id, tag) VALUES (?, ?)",
                              [(cur.lastrowid, t) for t in tags])
-            return Link(cur.lastrowid, slug, url, created_at, expires_at, 0, 0, tuple(tags), max_visits)
+            return Link(cur.lastrowid, slug, url, created_at, expires_at, 0, 0, tuple(tags), max_visits, password_hash)
 
     def get_link(self, slug: str) -> Link | None:
         with self._conn() as conn:
@@ -134,7 +138,7 @@ class Storage:
     def update_link(self, slug: str, changes: dict) -> bool:
         """Apply only the keys present in `changes`: url, expires_at, max_visits, tags. False if no such link."""
         sets, args = [], []
-        for column in ("url", "expires_at", "max_visits"):
+        for column in ("url", "expires_at", "max_visits", "password_hash"):
             if column in changes:
                 sets.append(f"{column} = ?")
                 args.append(changes[column])

@@ -151,6 +151,59 @@ class ApiTests(unittest.TestCase):
         self.assertEqual((link["max_visits"], link["exhausted"], link["clicks"]), (1, True, 1))
         self.assertEqual(self.request("PATCH", "/api/links/once", {"max_visits": 0})[0], 400)
 
+    def form_post(self, path, password, headers=None, port=None):
+        conn = http.client.HTTPConnection("127.0.0.1", port or self.port, timeout=5)
+        body = "password=" + password
+        conn.request("POST", path, body, {"Content-Type": "application/x-www-form-urlencoded",
+                                          "User-Agent": BROWSER, **(headers or {})})
+        res = conn.getresponse()
+        raw = res.read().decode()
+        conn.close()
+        return res.status, raw, res
+
+    def test_password_protected_redirect(self):
+        _, link, _ = self.request("POST", "/api/links", {"url": "https://secret.example/x", "slug": "vault", "password": "s3cret!"})
+        self.assertTrue(link["protected"])
+        self.assertNotIn("password", json.dumps(link))
+        self.assertNotIn("scrypt", json.dumps(link))
+        ua = {"User-Agent": BROWSER}
+        status, body, res = self.request("GET", "/vault", token=None, headers=ua)
+        self.assertEqual(status, 200)  # the form, never the target
+        self.assertIn("password", body)
+        self.assertNotIn("secret.example", body)
+        self.assertIn("form-action 'self'", res.getheader("Content-Security-Policy"))
+        self.assertEqual(res.getheader("Cache-Control"), "no-store")
+        status, body, res = self.form_post("/vault", "wrong")
+        self.assertEqual(status, 200)
+        self.assertIn("Wrong password", body)
+        self.assertIsNone(res.getheader("Location"))
+        self.assertEqual(self.request("GET", "/api/links/vault")[1]["clicks"], 0)  # no click until success
+        status, _, res = self.form_post("/vault", "s3cret!")
+        self.assertEqual((status, res.getheader("Location")), (303, "https://secret.example/x"))
+        self.assertEqual(self.request("GET", "/api/links/vault")[1]["clicks"], 1)
+        # protection can be removed again
+        self.request("PATCH", "/api/links/vault", {"password": None})
+        self.assertEqual(self.request("GET", "/vault", token=None, headers=ua)[0], 302)
+        self.assertEqual(self.form_post("/nothere-xyz", "x")[0], 404)
+
+    def test_wrong_password_lockout(self):
+        config = Config(host="127.0.0.1", port=0, db_path=":memory:", token=TOKEN, auth_fail_limit=3)
+        server = create_server(LinkService(Storage(":memory:")), config)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        port = server.server_address[1]
+        try:
+            c = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+            c.request("POST", "/api/links", json.dumps({"url": "https://a.com", "slug": "guard", "password": "rightpw"}),
+                      {"Authorization": f"Bearer {TOKEN}"})
+            c.getresponse().read(); c.close()
+            statuses = [self.form_post("/guard", "bad", port=port)[0] for _ in range(3)]
+            self.assertEqual(statuses, [200, 200, 200])
+            status, _, res = self.form_post("/guard", "rightpw", port=port)  # even the right one is refused now
+            self.assertEqual(status, 429)
+            self.assertGreaterEqual(int(res.getheader("Retry-After")), 1)
+        finally:
+            server.shutdown(); server.server_close()
+
     def test_qr_svg(self):
         self.request("POST", "/api/links", {"url": "https://a.com", "slug": "qrme"})
         status, body, res = self.request("GET", "/api/links/qrme/qr.svg")

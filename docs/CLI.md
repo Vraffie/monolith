@@ -10,10 +10,10 @@ export HITCHLY_TOKEN=...                    # required (or --token)
 
 | Command | What it does |
 |---------|--------------|
-| `hitch new URL [--slug S] [--ttl 2h] [--tag T …] [--max-visits N]` | Create a link; prints the short URL (script-friendly) |
+| `hitch new URL [--slug S] [--ttl 2h] [--tag T …] [--max-visits N] [--ask-password \| --password-env VAR]` | Create a link; prints the short URL (script-friendly) |
 | `hitch ls [--limit N] [--tag T] [--search TEXT] [--json]` | List links as a table or JSON |
 | `hitch get SLUG` | Show one link as JSON |
-| `hitch edit SLUG [--target URL] [--ttl 7d \| --no-expiry] [--tag T … \| --clear-tags] [--max-visits N \| --no-max-visits]` | Change destination and/or expiry |
+| `hitch edit SLUG [--target URL] [--ttl 7d \| --no-expiry] [--tag T … \| --clear-tags] [--max-visits N \| --no-max-visits] [--ask-password \| --password-env VAR \| --no-password]` | Change destination and/or expiry |
 | `hitch rm SLUG [-y]` | Delete (asks for confirmation unless `-y`) |
 | `hitch stats SLUG [--days N] [--include-bots]` | Human visits (+bot count), per-day bars, top referrers |
 | `hitch clicks SLUG` | Raw click log as CSV on stdout |
@@ -21,6 +21,8 @@ export HITCHLY_TOKEN=...                    # required (or --token)
 | `hitch export [--format json\|csv]` | Every link, paged transparently |
 | `hitch import FILE [--skip-existing]` | Bulk create from `.json` (list of objects) or `.csv` with columns `url[,slug,ttl_seconds,tags,max_visits]` (tags separated by `;` or `,`) |
 | `hitch check [--timeout S] [--workers N]` | HEAD/GET every target; prints dead ones |
+
+There is deliberately no `--password VALUE` flag: it would end up in shell history and the process list. Use `--ask-password` (hidden prompt) or `--password-env`.
 
 Durations: seconds (`90`) or with a unit `s m h d w` (`15m`, `2h`, `7d`, `1w`).
 

@@ -49,6 +49,7 @@
         <div><label for="slug">Custom slug (optional)</label><input id="slug" pattern="[A-Za-z0-9_-]{3,32}" placeholder="my-link"></div>
         <div><label for="ttl">Expires after</label>
           <select id="ttl"><option value="">Never</option><option value="3600">1 hour</option><option value="86400">1 day</option><option value="604800">1 week</option><option value="2592000">30 days</option></select></div>
+        <div class="full"><label for="pw">Password (optional)</label><input id="pw" type="password" autocomplete="new-password" minlength="4" maxlength="128"></div>
         <div class="full"><label for="tags">Tags (comma separated, optional)</label><input id="tags" placeholder="docs, launch"></div>
         <div class="full row"><button>Shorten</button><span class="err" id="createErr" role="alert"></span></div>
       </form>
@@ -128,7 +129,7 @@ async function loadLinks() {
       el("div", { className: "row" }, el("a", { className: "short", href: l.short_url, target: "_blank", rel: "noopener", textContent: l.short_url }), el("div", {}, copy, " ", st, " ", qrBtn, " ", edit, " ", del)),
       el("div", { className: "target", textContent: l.url }),
       ...(l.tags.length ? [el("div", { className: "meta", textContent: l.tags.map(t => "#" + t).join(" ") })] : []),
-      el("div", { className: "meta", textContent: `${l.clicks} clicks` + (l.bot_clicks ? ` (+${l.bot_clicks} bot)` : "") + ` · created ${fmt(l.created_at)}` + (l.expires_at ? (l.expired ? " · EXPIRED" : ` · expires ${fmt(l.expires_at)}`) : "") + (l.max_visits ? ` · limit ${l.max_visits}` + (l.exhausted ? " (used up)" : "") : "") }),
+      el("div", { className: "meta", textContent: `${l.clicks} clicks` + (l.bot_clicks ? ` (+${l.bot_clicks} bot)` : "") + ` · created ${fmt(l.created_at)}` + (l.expires_at ? (l.expired ? " · EXPIRED" : ` · expires ${fmt(l.expires_at)}`) : "") + (l.protected ? " · password protected" : "") + (l.max_visits ? ` · limit ${l.max_visits}` + (l.exhausted ? " (used up)" : "") : "") }),
       stats, qrBox));
   }
 }
@@ -147,6 +148,7 @@ $("createForm").onsubmit = async e => {
   if ($("ttl").value) body.ttl_seconds = Number($("ttl").value);
   const tags = $("tags").value.split(",").map(t => t.trim()).filter(Boolean);
   if (tags.length) body.tags = tags;
+  if ($("pw").value) body.password = $("pw").value;
   try { await api("/api/links", { method: "POST", body: JSON.stringify(body) }); e.target.reset(); loadLinks(); }
   catch (err) { $("createErr").textContent = err.message; }
 };

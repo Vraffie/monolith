@@ -30,6 +30,7 @@ The SDK (`hitchly_client`) and CLI (`hitch`) sit outside this layering and consu
 The schema is versioned with `PRAGMA user_version` and evolved by the append-only `MIGRATIONS` list in `storage.py` (never edit a released step).
 
 ## Security
+- Link passwords: salted scrypt (stdlib), constant-time verification, never serialised (`Link.password_hash` is excluded from `repr`), attempts rate limited per client+slug.
 - Bearer token compared with `hmac.compare_digest`; random token generated if unset.
 - Only `http`/`https` targets (blocks `javascript:`/`data:`), length and whitespace checks.
 - Body capped at 8 KiB; unread bodies close the connection (avoids request smuggling-style desync).

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import getpass
 import io
 import json
 import os
@@ -39,6 +40,27 @@ def _print_table(rows: list[list[str]], header: list[str], out) -> None:
         print("  ".join(str(c).ljust(w) for c, w in zip(r, widths)).rstrip(), file=out)
 
 
+def _password_args(s) -> None:
+    # Deliberately no --password VALUE: it would leak into shell history and `ps`.
+    g = s.add_mutually_exclusive_group()
+    g.add_argument("--ask-password", action="store_true", help="prompt for a link password (hidden input)")
+    g.add_argument("--password-env", metavar="VAR", help="read the link password from environment variable VAR")
+
+
+def _read_link_password(args, ask=getpass.getpass) -> str | None:
+    if getattr(args, "ask_password", False):
+        first = ask("Link password: ")
+        if first != ask("Repeat password: "):
+            raise ValueError("passwords do not match")
+        return first
+    if getattr(args, "password_env", None):
+        value = os.environ.get(args.password_env)
+        if not value:
+            raise ValueError(f"environment variable {args.password_env} is empty or unset")
+        return value
+    return None
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="hitch", description="Manage a Hitchly URL shortener.")
     p.add_argument("--url", default=os.environ.get("HITCHLY_URL", "http://127.0.0.1:8080"),
@@ -52,6 +74,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--ttl", type=parse_duration, metavar="DURATION", help="expire after e.g. 2h, 7d")
     s.add_argument("--tag", action="append", default=[], help="tag the link (repeatable)")
     s.add_argument("--max-visits", type=int, metavar="N", help="stop redirecting (410) after N human visits")
+    _password_args(s)
 
     s = sub.add_parser("ls", help="list links")
     s.add_argument("--limit", type=int, default=50)
@@ -69,6 +92,8 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--no-expiry", action="store_true", help="remove expiry")
     s.add_argument("--tag", action="append", default=None, help="replace the tag list (repeatable)")
     s.add_argument("--clear-tags", action="store_true", help="remove all tags")
+    _password_args(s)
+    s.add_argument("--no-password", action="store_true", help="remove password protection")
     g2 = s.add_mutually_exclusive_group()
     g2.add_argument("--max-visits", type=int, metavar="N", help="set the visit cap")
     g2.add_argument("--no-max-visits", action="store_true", help="remove the visit cap")
@@ -137,13 +162,15 @@ def probe(url: str, timeout: float) -> tuple[bool, str]:
 def run(args, api: Hitchly, out, err, confirm=input) -> int:
     cmd = args.cmd
     if cmd == "new":
-        print(api.create(args.target, args.slug, args.ttl, args.tag, args.max_visits)["short_url"], file=out)
+        print(api.create(args.target, args.slug, args.ttl, args.tag, args.max_visits,
+                         _read_link_password(args))["short_url"], file=out)
     elif cmd == "ls":
         links = api.list(args.limit, tag=args.tag, q=args.search)["links"]
         if args.json:
             print(json.dumps(links, indent=2), file=out)
         else:
-            _print_table([[l["slug"], l["clicks"], _ts(l["expires_at"]) + (" (expired)" if l["expired"] else ""),
+            _print_table([[l["slug"] + (" 🔒" if l["protected"] else ""), l["clicks"],
+                           _ts(l["expires_at"]) + (" (expired)" if l["expired"] else ""),
                            ",".join(l["tags"]), l["url"]] for l in links],
                          ["SLUG", "CLICKS", "EXPIRES", "TAGS", "TARGET"], out)
     elif cmd == "get":
@@ -158,13 +185,17 @@ def run(args, api: Hitchly, out, err, confirm=input) -> int:
             kwargs["tags"] = []
         elif args.tag is not None:
             kwargs["tags"] = args.tag
+        if args.no_password:
+            kwargs["password"] = None
+        elif (pw := _read_link_password(args)) is not None:
+            kwargs["password"] = pw
         if args.no_max_visits:
             kwargs["max_visits"] = None
         elif args.max_visits is not None:
             kwargs["max_visits"] = args.max_visits
-        if kwargs["url"] is None and not {"ttl_seconds", "tags", "max_visits"} & kwargs.keys():
+        if kwargs["url"] is None and not {"ttl_seconds", "tags", "max_visits", "password"} & kwargs.keys():
             print("nothing to change: pass --target, --ttl, --no-expiry, --tag, --clear-tags, "
-                  "--max-visits or --no-max-visits", file=err)
+                  "--max-visits, --no-max-visits, --ask-password, --password-env or --no-password", file=err)
             return 2
         link = api.update(args.slug, **kwargs)
         print(f"{link['short_url']} -> {link['url']} (expires: {_ts(link['expires_at'])})", file=out)

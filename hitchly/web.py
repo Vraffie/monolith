@@ -15,7 +15,7 @@ from urllib.parse import parse_qs, urlsplit
 from . import __version__, qr
 from .config import Config
 from .ratelimit import RateLimiter
-from .domain import Conflict, Link, NotFound, ValidationError
+from .domain import Conflict, Link, NotFound, PasswordRequired, ValidationError
 from .service import LinkService
 
 MAX_BODY = 8 * 1024
@@ -34,6 +34,18 @@ def _int_param(qs: dict, name: str, default: int) -> int:
         raise ValidationError(f"{name} must be an integer") from None
 
 
+FORM_CSP = "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"
+FORM_PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>Protected link</title><style>
+body{{font:16px/1.5 system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;margin:0;background:#f7f7f5;color:#1c1c1a}}
+@media(prefers-color-scheme:dark){{body{{background:#161616;color:#eee}}input{{background:#222;color:#eee}}}}
+form{{width:min(92vw,340px)}}h1{{font-size:1.2rem}}input,button{{width:100%;box-sizing:border-box;padding:10px;font:inherit;margin-top:8px;
+border-radius:6px;border:1px solid #8884}}button{{background:#2f5bea;color:#fff;border-color:#2f5bea;cursor:pointer}}.err{{color:#c0392b}}
+</style></head><body><form method="post" autocomplete="off"><h1>This link is password protected</h1>{error}
+<label for="p">Password</label><input id="p" name="password" type="password" required autofocus maxlength="128">
+<button>Continue</button></form></body></html>"""
+
+
 def _csv_safe(value: str | None) -> str:
     """Neutralise spreadsheet formula injection: referrer/UA are attacker-controlled."""
     value = value or ""
@@ -43,6 +55,7 @@ def _csv_safe(value: str | None) -> str:
 def make_handler(service: LinkService, config: Config):
     auth_failures = RateLimiter(max(1, config.auth_fail_limit), 60)
     creations = RateLimiter(config.create_limit, 60) if config.create_limit > 0 else None
+    password_failures = RateLimiter(max(1, config.auth_fail_limit), 60)  # keyed by client + slug
 
     class Handler(BaseHTTPRequestHandler):
         server_version = f"Hitchly/{__version__}"
@@ -107,6 +120,7 @@ def make_handler(service: LinkService, config: Config):
                 "tags": list(link.tags),
                 "max_visits": link.max_visits,
                 "exhausted": link.exhausted,
+                "protected": bool(link.password_hash),
             }
 
         def _dispatch(self, fn):
@@ -224,14 +238,43 @@ def make_handler(service: LinkService, config: Config):
             if path.startswith("/api/"):
                 return self._error(404, "not found")
             if m := SLUG_PATH.match(path):
-                target = service.resolve(m.group(1), self.headers.get("Referer"), self.headers.get("User-Agent"),
-                                         head=self.command == "HEAD")
-                if target is None:
-                    return self._send(410, b"This link is no longer available.\n", "text/plain; charset=utf-8")
-                return self._send(302, b"", headers={"Location": target, "Cache-Control": "no-store"})
+                return self._redirect(m.group(1), password=None)
             self._error(404, "not found")
 
+        def _redirect(self, slug: str, password: str | None):
+            try:
+                target = service.resolve(slug, self.headers.get("Referer"), self.headers.get("User-Agent"),
+                                         head=self.command == "HEAD", password=password)
+            except PasswordRequired as e:
+                if e.wrong:
+                    password_failures.record(f"{self._client_ip()}|{slug}")
+                error = '<p class="err" role="alert">Wrong password.</p>' if e.wrong else ""
+                return self._send(200, FORM_PAGE.format(error=error).encode(), "text/html; charset=utf-8",
+                                  {"Content-Security-Policy": FORM_CSP, "Cache-Control": "no-store"})
+            if target is None:
+                return self._send(410, b"This link is no longer available.\n", "text/plain; charset=utf-8")
+            # 303 so the browser follows with GET even after a form POST
+            status = 303 if password is not None else 302
+            return self._send(status, b"", headers={"Location": target, "Cache-Control": "no-store"})
+
+        def _submit_password(self, slug: str):
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                length = -1
+            if not 0 <= length <= 2048:
+                self.close_connection = True
+                return self._error(400, "invalid request body")
+            wait = password_failures.blocked_for(f"{self._client_ip()}|{slug}")
+            if wait:  # refuse before spending a scrypt computation
+                self.rfile.read(length)
+                return self._error(429, "too many wrong passwords, try later", {"Retry-After": str(int(wait) + 1)})
+            fields = parse_qs(self.rfile.read(length).decode("utf-8", "replace"))
+            self._redirect(slug, fields.get("password", [""])[0])
+
         def _post(self):
+            if (m := SLUG_PATH.match(urlsplit(self.path).path)):
+                return self._submit_password(m.group(1))
             if self.path != "/api/links":
                 self.close_connection = True
                 return self._error(404, "not found")
@@ -245,7 +288,7 @@ def make_handler(service: LinkService, config: Config):
                     return self._error(429, "too many links created, slow down", {"Retry-After": str(int(wait) + 1)})
             body = self._read_json()
             link = service.create(body.get("url"), body.get("slug"), body.get("ttl_seconds"), body.get("tags"),
-                                  body.get("max_visits"))
+                                  body.get("max_visits"), body.get("password"))
             if creations:
                 creations.record(self._client_ip())
             self._json(201, self._link_json(link), {"Location": f"/api/links/{link.slug}"})
