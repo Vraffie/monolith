@@ -116,6 +116,16 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("import", help="bulk-create links from a .json or .csv file (url[,slug,ttl_seconds,tags,max_visits])")
     s.add_argument("file")
     s.add_argument("--skip-existing", action="store_true", help="treat slug conflicts as skipped, not failed")
+    s.add_argument("--dry-run", action="store_true", help="parse and map the file, report problems, send nothing")
+    s.add_argument("--delimiter", default=",", help="CSV delimiter (default ',')")
+    s.add_argument("--default-tag", action="append", default=[], metavar="TAG",
+                   help="add this tag to every imported link (repeatable), e.g. 'imported'")
+    m = s.add_argument_group("column mapping (names of columns/keys in your file; defaults shown)")
+    for field, default in IMPORT_FIELDS.items():
+        m.add_argument(f"--{field.replace('_', '-')}-col", metavar="NAME", default=default,
+                       help=f"column for {field} (default '{default}')")
+    m.add_argument("--slug-last-segment", action="store_true",
+                   help="if the slug column holds a short URL like https://bit.ly/abc, keep only 'abc'")
 
     s = sub.add_parser("check", help="probe every target URL; exit 1 if any is dead")
     s.add_argument("--timeout", type=float, default=8.0)
@@ -123,14 +133,17 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
-def _read_import_rows(path: str) -> list[dict]:
-    with open(path, newline="", encoding="utf-8") as f:
+IMPORT_FIELDS = {"url": "url", "slug": "slug", "ttl_seconds": "ttl_seconds", "tags": "tags", "max_visits": "max_visits"}
+
+
+def _read_import_rows(path: str, delimiter: str = ",") -> list[dict]:
+    with open(path, newline="", encoding="utf-8-sig") as f:  # utf-8-sig: tolerate the BOM Excel adds
         if path.lower().endswith(".json"):
             rows = json.load(f)
             if not isinstance(rows, list):
                 raise ValueError("JSON import must be a list of objects")
         else:
-            rows = list(csv.DictReader(f))
+            rows = list(csv.DictReader(f, delimiter=delimiter))
     return rows
 
 
@@ -232,16 +245,33 @@ def run(args, api: Hitchly, out, err, confirm=input) -> int:
             for l in links:
                 w.writerow([l["slug"], l["url"], l["created_at"], l["expires_at"] or "", l["clicks"], ";".join(l["tags"])])
     elif cmd == "import":
+        cols = {field: getattr(args, f"{field}_col") for field in IMPORT_FIELDS}
+        rows = _read_import_rows(args.file, args.delimiter)
+        if rows and cols["url"] not in rows[0]:
+            print(f"error: no '{cols['url']}' column; found: {', '.join(map(str, rows[0]))}. "
+                  f"Use --url-col to name it.", file=err)
+            return 2
         created = skipped = failed = 0
-        for n, row in enumerate(_read_import_rows(args.file), start=1):
-            ttl = row.get("ttl_seconds")
+        for n, row in enumerate(rows, start=1):
+            url = (row.get(cols["url"]) or "").strip() if isinstance(row.get(cols["url"]), (str, type(None))) else ""
+            slug = row.get(cols["slug"]) or None
+            if slug and args.slug_last_segment:
+                slug = str(slug).rstrip("/").rsplit("/", 1)[-1] or None
+            ttl = row.get(cols["ttl_seconds"])
+            cap = row.get(cols["max_visits"])
+            raw_tags = row.get(cols["tags"]) or []
+            if isinstance(raw_tags, str):
+                raw_tags = [t for t in re.split(r"[;,]", raw_tags) if t.strip()]
+            tags = [*raw_tags, *args.default_tag]
+            if args.dry_run:
+                if url:
+                    created += 1
+                else:
+                    failed += 1
+                    print(f"row {n}: missing '{cols['url']}'", file=err)
+                continue
             try:
-                raw_tags = row.get("tags") or []
-                if isinstance(raw_tags, str):
-                    raw_tags = [t for t in re.split(r"[;,]", raw_tags) if t.strip()]
-                cap = row.get("max_visits")
-                api.create(row.get("url") or "", (row.get("slug") or None),
-                           int(ttl) if ttl not in (None, "") else None, raw_tags,
+                api.create(url, slug, int(ttl) if ttl not in (None, "") else None, tags,
                            int(cap) if cap not in (None, "") else None)
                 created += 1
             except (HitchlyError, ValueError) as e:
@@ -250,7 +280,10 @@ def run(args, api: Hitchly, out, err, confirm=input) -> int:
                 else:
                     failed += 1
                     print(f"row {n}: {e}", file=err)
-        print(f"imported: {created} created, {skipped} skipped, {failed} failed", file=out)
+        if args.dry_run:
+            print(f"dry run: {created} would be sent, {failed} rows have no URL", file=out)
+        else:
+            print(f"imported: {created} created, {skipped} skipped, {failed} failed", file=out)
         return 1 if failed else 0
     elif cmd == "check":
         links = list(api.iter_links())

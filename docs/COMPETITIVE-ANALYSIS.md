@@ -37,7 +37,7 @@ claims, not measurements. Nothing here was benchmarked.
 | REST API | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
 | First-party CLI | ✔ (server-side) | ◐ | ✘ | ✘ | ✘ | **✔ (remote)** |
 | First-party SDK | ◐ | ✘ | ✘ | ✔ | ✘ | ✔ (Python) |
-| Import from other shorteners | ✔ | — | — | ✔ | JSON | ◐ (CSV/JSON only) |
+| Import from other shorteners | ✔ | — | — | ✔ | JSON | ◐ (CSV/JSON with column mapping) |
 | Export analytics (CSV) | ✔ | — | — | ✔ | ✔ | ✔ |
 | Webhooks / event integrations | ✔ | plugin | — | ✔ | — | ✘ |
 | Prometheus metrics | — | — | — | — | — | **✔** |

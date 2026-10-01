@@ -19,7 +19,7 @@ export HITCHLY_TOKEN=...                    # required (or --token)
 | `hitch clicks SLUG` | Raw click log as CSV on stdout |
 | `hitch qr SLUG [-o FILE]` | QR code of the short URL as SVG |
 | `hitch export [--format json\|csv]` | Every link, paged transparently |
-| `hitch import FILE [--skip-existing]` | Bulk create from `.json` (list of objects) or `.csv` with columns `url[,slug,ttl_seconds,tags,max_visits]` (tags separated by `;` or `,`) |
+| `hitch import FILE [--skip-existing] [--dry-run] [--delimiter C] [--default-tag T …] [--url-col N] [--slug-col N] [--ttl-col…] [--slug-last-segment]` | Bulk create from `.json` (list of objects) or `.csv` with columns `url[,slug,ttl_seconds,tags,max_visits]` (tags separated by `;` or `,`) |
 | `hitch check [--timeout S] [--workers N]` | HEAD/GET every target; prints dead ones |
 
 There is deliberately no `--password VALUE` flag: it would end up in shell history and the process list. Use `--ask-password` (hidden prompt) or `--password-env`.
@@ -28,6 +28,16 @@ Durations: seconds (`90`) or with a unit `s m h d w` (`15m`, `2h`, `7d`, `1w`).
 
 Exit codes: `0` success · `1` failure (API error, aborted, dead links found, failed import rows) ·
 `2` usage error (no token, nothing to change).
+
+## Importing from another shortener
+Export your links from the old service as CSV (or JSON), then map its column names; Hitchly doesn't hard-code any vendor's export format.
+```bash
+hitch import export.csv --dry-run --url-col "Long URL" --slug-col "Short Link" --slug-last-segment   # check first
+hitch import export.csv --url-col "Long URL" --slug-col "Short Link" --slug-last-segment --default-tag imported --skip-existing
+```
+If the URL column isn't found the command lists the columns it did find. Only URL, slug, expiry (`ttl_seconds`), tags and `max_visits` are imported;
+click history and passwords are not. Rows without a slug get a random one, so old short links will only keep working if you map the slug column
+and serve the same domain.
 
 ## Recipes
 ```bash

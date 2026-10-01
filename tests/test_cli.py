@@ -93,6 +93,34 @@ class CliTests(unittest.TestCase):
             self.assertEqual(self.ctl("qr", "cli-qr", "-o", path)[0], 0)
             self.assertTrue(open(path).read().startswith("<svg"))
 
+    def test_import_column_mapping_dry_run_and_default_tag(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "bitly.csv")
+            with open(path, "w", encoding="utf-8-sig") as f:  # BOM like Excel exports
+                f.write("Long URL;Short Link;Group\n"
+                        "https://example.com/m1;https://bit.ly/map-one;g1\n"
+                        "https://example.com/m2;https://bit.ly/map-two/;g1\n"
+                        ";https://bit.ly/nourl;g1\n")
+            mapping = ["--delimiter", ";", "--url-col", "Long URL", "--slug-col", "Short Link", "--slug-last-segment"]
+            before = json.loads(self.ctl("export")[1])
+            code, out, err = self.ctl("import", path, *mapping, "--dry-run")
+            self.assertEqual((code, "2 would be sent, 1 rows have no URL" in out, "row 3" in err), (1, True, True))
+            self.assertEqual(json.loads(self.ctl("export")[1]), before)  # dry run sent nothing
+            code, out, _ = self.ctl("import", path, *mapping, "--default-tag", "imported")
+            self.assertIn("2 created, 0 skipped, 1 failed", out)
+            got = {l["slug"]: l for l in json.loads(self.ctl("export")[1])}
+            self.assertEqual(got["map-one"]["tags"], ["imported"])
+            self.assertEqual(got["map-two"]["url"], "https://example.com/m2")
+
+    def test_import_names_the_missing_column(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "x.csv")
+            with open(path, "w") as f:
+                f.write("href,name\nhttps://a.com,x\n")
+            code, _, err = self.ctl("import", path)
+            self.assertEqual(code, 2)
+            self.assertIn("found: href, name", err)
+
     def test_tags_and_search(self):
         self.ctl("new", "https://example.com/t1", "--slug", "cli-t1", "--tag", "alpha", "--tag", "beta")
         self.ctl("new", "https://example.com/t2", "--slug", "cli-t2", "--tag", "beta")
