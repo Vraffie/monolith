@@ -68,3 +68,13 @@ export function debounce(fn, ms = 150) {
   let t;
   return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
 }
+
+/** Offer binary data (Uint8Array / Blob) as a download. */
+export function downloadBlob(filename, data, type = "application/octet-stream") {
+  const url = URL.createObjectURL(data instanceof Blob ? data : new Blob([data], { type }));
+  const a = h("a", { href: url, download: filename });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

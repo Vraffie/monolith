@@ -1,7 +1,7 @@
 // Tool manifest. Metadata lives here so the navigation renders without loading any tool; each tool's code is fetched on demand
 // (opening Base64 used to download every tool: 46 requests, 102 KB). tests/js/manifest.test.mjs fails if a tool's own
 // metadata drifts from this list. A tool module is { id, title, group, blurb, keywords, needsAuth, mount(root, ctx) }.
-export const GROUPS = ["Links", "QR & URLs", "Encode & decode", "Generate", "Format & convert", "Network & web", "Admin"];
+export const GROUPS = ["Links", "QR & URLs", "Encode & decode", "Generate", "Format & convert", "Images", "Network & web", "Admin"];
 
 // `load` is a literal `() => import("./x.js")` on purpose: bundlers (see scripts/bundle.mjs) can only follow static import paths.
 const entry = (load, id, title, group, blurb, keywords = "", needsAuth = false) =>
@@ -98,6 +98,21 @@ export const tools = [
   entry(() => import("./validate.js"), "validate", "IBAN validator & email normaliser", "Format & convert",
     "Check an IBAN's country length and checksum, or reduce email addresses to a canonical form for de-duplication. Nothing is looked up or sent anywhere.",
     "iban bank account checksum email normalize gmail dots plus tag duplicate", false),
+  entry(() => import("./imgmeta.js"), "image-privacy", "Photo privacy cleaner", "Images",
+    "See what a photo gives away (camera, date, GPS location) and remove it without re-encoding: the picture itself stays byte-for-byte identical. Nothing is uploaded.",
+    "exif gps location metadata remove strip photo privacy jpeg png webp", false),
+  entry(() => import("./imgconvert.js"), "image-convert", "Image converter & compressor", "Images",
+    "Convert between PNG, JPEG and WebP, resize and compress. Runs in your browser; the image is never uploaded. Re-encoding drops metadata as a side effect.",
+    "resize compress shrink convert png jpeg jpg webp scale reduce size photo", false),
+  entry(() => import("./favicon.js"), "favicon", "Favicon & app icon generator", "Images",
+    "Turn one image into favicon.ico, Apple touch icon and PWA icons, plus the HTML and manifest to use them, in a single ZIP. Built in your browser.",
+    "favicon ico apple touch icon pwa manifest 192 512 app icon png", false),
+  entry(() => import("./colorblind.js"), "colour-blindness", "Colour-blindness simulator", "Images",
+    "See an image or screenshot the way people with the common colour-vision deficiencies see it. An approximation (Machado 2009), not a medical test. Runs in your browser.",
+    "colorblind color blind accessibility protanopia deuteranopia tritanopia a11y vision", false),
+  entry(() => import("./datauri.js"), "data-uri", "File ⇄ data: URI", "Images",
+    "Turn a small file into a data: URI to inline in HTML or CSS, or paste a data: URI to preview and download it. Base64 adds about a third to the size.",
+    "data uri base64 embed inline image css html convert decode", false),
   entry(() => import("./http.js"), "http", "HTTP status & MIME reference", "Network & web",
     "Look up what an HTTP status code means (and which redirect to use), or find the MIME type for a file extension.",
     "status code 404 301 302 redirect mime content-type extension", false),

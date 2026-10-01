@@ -24,7 +24,7 @@ test("jpeg: finds everything hidden in the file", async () => {
 });
 
 test("jpeg: lossless strip removes the metadata and leaves the image data byte-identical", async () => {
-  const m = await lib("imgmeta"), src = fx("photo-gps.jpg"), r = m.strip(src);
+  const m = await lib("imgmeta"), src = fx("photo-gps.jpg"), r = m.strip(src, { keepOrientation: false });
   assert.ok(r.bytes.length < src.length && r.saved === src.length - r.bytes.length);
   for (const secret of ["ACME", "Cam 9", "Jane Doe", "secret note", "Exif", "Photoshop"]) { assert.ok(has(src, secret), "fixture should contain " + secret); assert.ok(!has(r.bytes, secret), "still present: " + secret); }
   assert.deepEqual([r.bytes[0], r.bytes[1], r.bytes[r.bytes.length - 2], r.bytes[r.bytes.length - 1]], [0xff, 0xd8, 0xff, 0xd9]);
@@ -34,6 +34,15 @@ test("jpeg: lossless strip removes the metadata and leaves the image data byte-i
   assert.equal(r.removed.length, 4); assert.equal(r.exif.orientation, 6);                    // caller can warn that rotation info was removed
   assert.ok(eq(m.strip(r.bytes).bytes, r.bytes), "stripping twice changes nothing");           // idempotent
   assert.ok(eq(m.strip(fx("plain.jpg")).bytes, fx("plain.jpg")), "a clean file is returned unchanged");
+});
+
+test("jpeg: by default only the rotation flag survives, so cleaned photos do not turn sideways", async () => {
+  const m = await lib("imgmeta"), src = fx("photo-gps.jpg"), r = m.strip(src), after = m.inspect(r.bytes);
+  assert.equal(after.exif.orientation, 6); assert.equal(after.exif.gps, null); assert.equal(after.exif.make, "");
+  for (const secret of ["ACME", "Cam 9", "Jane Doe", "Photoshop"]) assert.ok(!has(r.bytes, secret));
+  assert.ok(eq(sosTail(r.bytes), sosTail(src)), "scan data untouched");
+  assert.ok(eq(m.strip(r.bytes).bytes, r.bytes), "idempotent");
+  assert.ok(r.removed.some(i => /rotation flag kept/.test(i.label)));
 });
 
 test("png: text chunks, EXIF and timestamps are removed; pixel data chunks are identical", async () => {

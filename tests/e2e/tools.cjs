@@ -16,7 +16,7 @@ const U = id => (process.env.BUNDLE ? `${BASE}#/${id}` : `${BASE}/#/${id}`);
   const out = async n => (await p.locator('.out pre').nth(n).innerText());
 
   await p.goto(process.env.BUNDLE ? BASE : BASE+'/'); await p.waitForSelector('nav a');
-  ok('nav lists 37 tools', (await p.$$('nav a')).length === 37, String((await p.$$('nav a')).length));
+  ok('nav lists 42 tools', (await p.$$('nav a')).length === 42, String((await p.$$('nav a')).length));
 
   await go('base64'); await p.fill('textarea','hello'); await p.waitForTimeout(80);
   ok('base64 encode', (await out(0)) === 'aGVsbG8=', await out(0));

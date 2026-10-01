@@ -13,6 +13,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
   metrics `linkly_*` → `hitchly_*`.
 
 ### Added
+- **Image tools (5 new, 42 in total; new "Images" group):** Photo privacy cleaner (shows camera, date and GPS, then removes metadata from JPEG/PNG/WebP *without re-encoding*; the rotation flag is kept so photos do not turn sideways), Image converter & compressor (PNG/JPEG/WebP, resize), Favicon & app icon generator (ICO + PNGs + manifest in a ZIP), Colour-blindness simulator (Machado 2009), File ⇄ data: URI. All run in the browser. Stripping verified with Pillow (pixels identical, no leftover metadata), ZIP/ICO with Python's zipfile; also tested inside the offline bundle.
 - **Offline single-file bundle** (`npm run bundle` / `make bundle` → `dist/hitchly-toolbox.html`): every client-side tool in one reproducible file with a hash-pinned CSP and `connect-src 'none'`; tested from `file://` with zero network requests and a tamper check; CI uploads it as an artifact.
 - **Toolbox batch 1 (15 new tools, 37 in total):** Text & JSON diff, Cron explainer, JSON/YAML/XML/CSV converter, HTTP status & MIME reference, TOTP (2FA) codes with QR, Subnet calculator (IPv4/IPv6, range → CIDR),
   Lorem ipsum, chmod calculator, Escape & unescape, Text ⇄ bytes/Unicode/NATO, Unit/percentage/Roman converters, IBAN validator & email normaliser, Basic auth header, RSA/ECDSA/Ed25519 key pairs,

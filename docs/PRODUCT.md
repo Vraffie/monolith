@@ -36,4 +36,4 @@ Time-to-first-link < 60 s; redirect path adds one indexed read and one insert.
 
 ## Roadmap
 Shipped in 1.1: link editing, bulk import/export, CSV clicks, metrics, auth lockout, SDK, CLI.
-Done since: UI editing, creation rate limit, the browser toolbox (37 tools, static-hostable), bulk/import/export/backup in the UI. Done: QR codes. Next: multiple scoped API tokens, click webhooks. Tracked in GitHub issues.
+Done since: UI editing, creation rate limit, the browser toolbox (42 tools, static-hostable), bulk/import/export/backup in the UI. Done: QR codes. Next: multiple scoped API tokens, click webhooks. Tracked in GitHub issues.

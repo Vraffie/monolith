@@ -1,6 +1,6 @@
 # Hitchly
 
-A small, self-hosted URL shortener with click analytics, **plus a browser toolbox of 37 everyday tools**
+A small, self-hosted URL shortener with click analytics, **plus a browser toolbox of 42 everyday tools**
 (QR codes, redirect tracer, diff, cron, converters, TOTP, subnets, Base64, JWT, hashes, UUIDs, regex, …).
 One process, one SQLite file, **zero dependencies** (Python 3.10+ standard library only).
 
@@ -13,6 +13,7 @@ One process, one SQLite file, **zero dependencies** (Python 3.10+ standard libra
 | Encode & decode | Base64, URL encode/decode, Escape & unescape (HTML, JS, JSON, SQL), Text ⇄ bytes / Unicode / NATO, JWT decoder, Hash & HMAC, Encrypt & decrypt text (AES-GCM) |
 | Generate | UUID v4/v7 & ULID, Password & token generator, TOTP (2FA) codes with QR, RSA/ECDSA/Ed25519 key pairs, Lorem ipsum |
 | Format & convert | JSON formatter, JSON/YAML/XML/CSV converter, Text & JSON diff, Cron explainer, Timestamp converter, Colour & contrast, Regex tester, Text utilities, Number base converter, Unit / percentage / Roman numeral converters, chmod calculator, IBAN validator & email normaliser |
+| Images | Photo privacy cleaner (removes EXIF/GPS without re-encoding), Image converter & compressor, Favicon & app icon generator (ZIP), Colour-blindness simulator, File ⇄ data: URI |
 | Network & web | HTTP status & MIME reference, Subnet calculator (IPv4/IPv6, range → CIDR), Basic auth header |
 | Admin | Dead-link checker, Import, Export, Maintenance (overview, purge, backup) |
 

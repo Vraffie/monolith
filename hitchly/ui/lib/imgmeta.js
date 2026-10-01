@@ -178,7 +178,16 @@ export function inspect(bytes) {
 }
 
 /** Remove metadata without re-encoding. Returns {bytes, removed:[{label, bytes}], saved}. */
-export function strip(bytes, { keepIcc = true } = {}) {
+/** A 36-byte JPEG EXIF segment that carries only the orientation, so a rotated photo does not turn sideways once cleaned. */
+function orientationOnly(o) {
+  const seg = new Uint8Array(36), dv = new DataView(seg.buffer);
+  seg.set([0xff, 0xe1, 0, 34, 0x45, 0x78, 0x69, 0x66, 0, 0, 0x4d, 0x4d, 0, 0x2a, 0, 0, 0, 8]);   // marker, length, "Exif\0\0", "MM", 42, IFD at 8
+  dv.setUint16(18, 1); dv.setUint16(20, 0x0112); dv.setUint16(22, 3); dv.setUint32(24, 1); dv.setUint16(28, o);   // one SHORT entry
+  return seg;                                                                                                      // next-IFD offset (30..33) stays 0
+}
+
+/** keepOrientation: JPEG only. Keeps the (harmless) rotation flag; PNG and WebP always drop it. */
+export function strip(bytes, { keepIcc = true, keepOrientation = true } = {}) {
   const info = inspect(bytes);
   if (info.format === "gif") fail(info.note);
   const removed = [];
@@ -187,7 +196,12 @@ export function strip(bytes, { keepIcc = true } = {}) {
     const { segs, tail } = parseJpeg(bytes), parts = [bytes.subarray(0, 2)];
     let at = 2;
     for (const s of segs) {
-      if (jpegRemovable(s, keepIcc)) { parts.push(bytes.subarray(at, s.start)); removed.push({ label: jpegLabel(s), bytes: s.end - s.start }); at = s.end; }
+      if (jpegRemovable(s, keepIcc)) {
+        parts.push(bytes.subarray(at, s.start)); at = s.end;
+        let kept = 0;
+        if (keepOrientation && isExif(s)) { const o = parseTiff(s.payload.subarray(6)).orientation; if (o >= 2 && o <= 8) { const seg = orientationOnly(o); parts.push(seg); kept = seg.length; } }
+        removed.push({ label: jpegLabel(s) + (kept ? " (rotation flag kept)" : ""), bytes: s.end - s.start - kept });
+      }
     }
     parts.push(bytes.subarray(at));
     out = concat(parts);

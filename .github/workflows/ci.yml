@@ -52,6 +52,7 @@ jobs:
           SITE_URL=http://127.0.0.1:8087 node tests/e2e/server-tools.cjs
           node tests/e2e/admin.cjs
           node tests/e2e/batch1.cjs
+          node tests/e2e/images.cjs
           node tests/e2e/a11y.cjs
 
   bundle:
@@ -69,6 +70,7 @@ jobs:
           node tests/e2e/bundle.cjs
           node tests/e2e/tools.cjs
           node tests/e2e/batch1.cjs
+          node tests/e2e/images.cjs
       - uses: actions/upload-artifact@v4
         with:
           name: hitchly-toolbox
