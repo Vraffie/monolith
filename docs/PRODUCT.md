@@ -26,9 +26,14 @@ Multi-user accounts, link editing, QR codes, geo/device analytics, public sign-u
 | 5 | I delete a link | link and its click history removed; later visits 404 |
 | 6 | Only I can manage links | all `/api` routes need the token; redirects are public |
 | 7 | I clean up | `python -m shortener purge` removes expired links |
+| 8 | I fix a link without changing its URL | `PATCH` changes target/expiry; slug and click history preserved |
+| 9 | I automate and migrate | SDK + `linklyctl`: create, bulk import/export, dead-link check; exit codes usable in cron/CI |
+| 10 | I monitor and recover | `/metrics` for Prometheus; online `backup` produces a consistent copy |
+| 11 | Guessing the token is impractical | repeated failures lock the client out (429) |
 
 ## Success metrics
 Time-to-first-link < 60 s; redirect path adds one indexed read and one insert.
 
 ## Roadmap
-Rate limiting, QR codes, link editing, bulk import/export, CSV stats, multiple API tokens.
+Shipped in 1.1: link editing, bulk import/export, CSV clicks, metrics, auth lockout, SDK, CLI.
+Next: QR codes, UI editing, click webhooks, multiple scoped API tokens, general rate limiting.

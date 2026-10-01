@@ -10,6 +10,14 @@ hardened for direct internet exposure: **put a TLS-terminating reverse proxy in 
 - [ ] Put `LINKLY_DB` on persistent storage and back it up
 - [ ] Schedule `purge` (optional)
 
+## Extra settings
+| Variable | Default | Notes |
+|----------|---------|-------|
+| `LINKLY_AUTH_FAIL_LIMIT` | `10` | Failed token attempts per client per minute before `429` |
+| `LINKLY_TRUST_PROXY` | off | Set to `1` **only** behind a proxy that overwrites `X-Forwarded-For`; otherwise every client appears as the proxy and shares one lockout bucket |
+
+With nginx add `proxy_set_header X-Forwarded-For $remote_addr;` (overwrite, don't append) and set `LINKLY_TRUST_PROXY=1`.
+
 ## systemd
 `/etc/systemd/system/linkly.service`
 ```ini
@@ -54,9 +62,14 @@ server {
 Add `limit_req` here if you need rate limiting; Linkly has none built in.
 
 ## Operations
-- **Backup:** `sqlite3 linkly.db ".backup backup.db"` (safe while running).
+- **Backup:** `python3 -m shortener backup /backups/linkly-$(date +%F).db` (consistent copy while running; uses `LINKLY_DB`).
 - **Purge expired links:** `python3 -m shortener purge`, e.g. cron `0 3 * * * cd /opt/linkly && python3 -m shortener purge`.
   Expired links already return 410 without purging; purging only reclaims space.
 - **Upgrade:** replace the code and restart; the schema is created idempotently on startup.
 - **Logs:** one access-log line per request on stdout.
 - **Rotating the token:** change `LINKLY_TOKEN` and restart (UI users must sign in again).
+
+## Monitoring
+`GET /metrics` (token required) exposes `linkly_links`, `linkly_links_expired`, `linkly_clicks_total`.
+`docker-compose.yml` ships an optional Prometheus profile preconfigured to scrape it:
+`docker compose --profile monitoring up -d`. Alert on `linkly_links_expired` growing if you rely on `purge`.

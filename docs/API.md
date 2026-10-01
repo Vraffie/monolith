@@ -6,6 +6,8 @@ Bodies and responses are JSON (`Content-Type: application/json`). Request bodies
 ## Authentication
 All `/api/*` routes require `Authorization: Bearer <LINKLY_TOKEN>`.
 Missing/invalid token → `401` with `WWW-Authenticate: Bearer`.
+More than `LINKLY_AUTH_FAIL_LIMIT` (default 10) failures per client per minute → `429` with `Retry-After`;
+while locked out, even the correct token is refused.
 `GET /{slug}`, `GET /health` and `GET /` are public.
 
 ## Errors
@@ -18,6 +20,7 @@ Every error is `{"error": "<message>"}`.
 | 404 | Unknown slug or route |
 | 409 | Custom slug already in use |
 | 410 | Link expired (redirect route only) |
+| 429 | Too many failed auth attempts; see `Retry-After` |
 | 500 | Unexpected server error |
 
 ## Link object
@@ -40,7 +43,7 @@ Timestamps are Unix seconds (UTC). `expires_at` is `null` for links that never e
 | Field | Type | Required | Rules |
 |-------|------|----------|-------|
 | `url` | string | yes | `http`/`https`, has host, ≤ 2048 chars, no whitespace |
-| `slug` | string | no | 3–32 chars of `A-Z a-z 0-9 _ -`; not reserved (`api`, `health`, `static`, `favicon.ico`, `robots.txt`, case-insensitive) |
+| `slug` | string | no | 3–32 chars of `A-Z a-z 0-9 _ -`; not reserved (`api`, `health`, `metrics`, `static`, `favicon.ico`, `robots.txt`, case-insensitive) |
 | `ttl_seconds` | integer | no | 1 – 315 360 000 (10 years) |
 
 Returns `201` with the link object and `Location: /api/links/{slug}`.
@@ -72,12 +75,24 @@ Returns the link object, or `404`.
 `days` is the look-back window for `clicks_per_day` (default 7). `total_clicks` is all-time.
 Days with no clicks are omitted. Up to 5 referrers are returned.
 
+### `PATCH /api/links/{slug}` — edit
+Body may contain `url` and/or `ttl_seconds`; anything else (including `slug`) is a `400`.
+`ttl_seconds` restarts the countdown from now; `null` removes the expiry (this also revives an expired link).
+Returns the updated link object.
+
+### `GET /api/links/{slug}/clicks.csv` — raw click log
+`text/csv` with columns `timestamp_utc,referrer,user_agent`, oldest first (max 10 000 rows).
+Cells beginning with `= + - @` are prefixed with `'` so spreadsheets don't evaluate them.
+
 ### `DELETE /api/links/{slug}` — delete
 Returns `204`. Click history is deleted with the link.
 
 ### `GET /{slug}` — redirect (public)
 - `302` with `Location: <url>` and `Cache-Control: no-store`; the click (time, `Referer`, `User-Agent`) is recorded.
 - `410` plain text if expired (not counted); `404` if unknown.
+
+### `GET /metrics` — Prometheus metrics (token required)
+`linkly_links`, `linkly_links_expired` (gauges) and `linkly_clicks_total` (counter), text exposition format.
 
 ### `GET /health` — liveness (public)
 `200 {"status":"ok","version":"1.1.0"}`

@@ -2,6 +2,19 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org/).
 
+## [1.1.0] - 2026-10-01
+### Added
+- `PATCH /api/links/{slug}` to edit target and expiry.
+- `GET /api/links/{slug}/clicks.csv` raw click export (formula-injection safe).
+- `GET /metrics` (Prometheus) and `python -m shortener backup <file>`.
+- Brute-force protection: per-client lockout after failed auth (`LINKLY_AUTH_FAIL_LIMIT`, `LINKLY_TRUST_PROXY`).
+- `linkly_client` Python SDK and `linklyctl` CLI (new/ls/get/edit/rm/stats/clicks/export/import/check).
+- GitHub Actions CI, `docker-compose.yml` with optional Prometheus profile.
+- Docs: CLI, SDK, ecosystem overview.
+
+### Changed
+- `metrics` is now a reserved slug.
+
 ## [1.0.0] - 2026-10-01
 ### Added
 - Link shortening with random or custom slugs and optional expiry.
