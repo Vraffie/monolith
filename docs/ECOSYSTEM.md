@@ -41,5 +41,5 @@ Linkly started as a server. It is now a small set of tools that all talk to the 
 - **Alerting:** Prometheus scrapes `/metrics`; alert on `linkly_links_expired` or a flat `linkly_clicks_total`.
 
 ## Not (yet) in the ecosystem
-Web UI editing and bulk actions, QR codes, webhooks on click, multiple API tokens/scopes,
+Web UI bulk actions, QR codes, webhooks on click, multiple API tokens/scopes,
 SDKs for other languages (the API is small and documented — see [API.md](API.md)).

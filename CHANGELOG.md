@@ -4,6 +4,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
 
 ## [Unreleased]
 ### Added
+- Web UI: edit a link's destination and expiry.
 - Rate limit on link creation (`LINKLY_CREATE_LIMIT`, default 60/min per client).
 
 ## [1.1.0] - 2026-10-01

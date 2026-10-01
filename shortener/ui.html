@@ -97,10 +97,21 @@ async function loadLinks() {
     const copy = el("button", { className: "ghost", textContent: "Copy" });
     copy.onclick = async () => { await navigator.clipboard.writeText(l.short_url); copy.textContent = "Copied"; setTimeout(() => copy.textContent = "Copy", 1200); };
     const st = el("button", { className: "ghost", textContent: "Stats" }); st.onclick = () => showStats(l, stats);
+    const edit = el("button", { className: "ghost", textContent: "Edit" });
+    edit.onclick = async () => {
+      const url = prompt("Destination URL:", l.url);
+      if (url === null) return;
+      const ttl = prompt("Expires after N hours from now (blank = keep as is, 0 = never):", "");
+      if (ttl === null) return;
+      const body = { url };
+      if (ttl.trim() !== "") body.ttl_seconds = Number(ttl) > 0 ? Math.round(Number(ttl) * 3600) : null;
+      try { await api(`/api/links/${l.slug}`, { method: "PATCH", body: JSON.stringify(body) }); loadLinks(); }
+      catch (err) { alert(err.message); }
+    };
     const del = el("button", { className: "danger", textContent: "Delete" });
     del.onclick = async () => { if (confirm(`Delete ${l.slug}?`)) { await api(`/api/links/${l.slug}`, { method: "DELETE" }); loadLinks(); } };
     list.append(el("div", { className: "link" },
-      el("div", { className: "row" }, el("a", { className: "short", href: l.short_url, target: "_blank", rel: "noopener", textContent: l.short_url }), el("div", {}, copy, " ", st, " ", del)),
+      el("div", { className: "row" }, el("a", { className: "short", href: l.short_url, target: "_blank", rel: "noopener", textContent: l.short_url }), el("div", {}, copy, " ", st, " ", edit, " ", del)),
       el("div", { className: "target", textContent: l.url }),
       el("div", { className: "meta", textContent: `${l.clicks} clicks · created ${fmt(l.created_at)}` + (l.expires_at ? (l.expired ? " · EXPIRED" : ` · expires ${fmt(l.expires_at)}`) : "") }),
       stats));
