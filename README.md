@@ -9,13 +9,19 @@ file, **zero dependencies** (Python 3.10+ standard library only).
 - Optional expiry (`ttl_seconds`) — expired links answer `410 Gone`
 - Click analytics: total, clicks per day, top referrers
 - JSON API protected by a bearer token, plus a small web UI at `/`
-- Tags and search
+- Per-link controls: expiry, max visits, password protection, tags and search
 - Bot-filtered analytics (crawlers and link previews don't inflate clicks)
 - QR code per link (SVG, no dependencies)
-- Edit a link's target or expiry; export raw clicks as CSV
+- Edit a link's target, expiry, tags or limits; export raw clicks as CSV
 - `purge` and online `backup` commands (cron-friendly), Prometheus `/metrics`
 - Brute-force protection on the token
 - **Ecosystem:** [Python SDK](docs/SDK.md), [`hitch` CLI](docs/CLI.md) (bulk import/export, dead-link checker), Docker, CI
+
+## Why Hitchly?
+Shlink, YOURLS, Kutt and Dub offer more features (geo analytics, multi-domain, accounts, webhooks). Hitchly is for when you want
+the *lightest complete* shortener: one Python process, one SQLite file, nothing to install, a remote CLI and SDK in the box, and
+safe defaults (bot-filtered stats, hashed link passwords, rate limits, atomic visit caps). The honest comparison, including what we
+deliberately don't build, is in [docs/COMPETITIVE-ANALYSIS.md](docs/COMPETITIVE-ANALYSIS.md).
 
 ## Quick start
 
@@ -86,7 +92,7 @@ Status codes: `400` validation, `401` bad token, `404` unknown, `409` slug taken
 ## Development
 
 ```bash
-make test          # 66 tests: unit + end-to-end (server, SDK and CLI over real HTTP)
+make test          # 80+ tests: unit + end-to-end (server, SDK and CLI over real HTTP)
 ```
 
 Layout:

@@ -139,7 +139,7 @@ class CliTests(unittest.TestCase):
         try:
             self.ctl("new", "https://example.com", "--slug", "cli-pw", "--password-env", "TEST_LINK_PW")
             self.assertTrue(json.loads(self.ctl("get", "cli-pw")[1])["protected"])
-            self.assertIn("🔒", self.ctl("ls", "--search", "cli-pw")[1])
+            self.assertIn("cli-pw (pw)", self.ctl("ls", "--search", "cli-pw")[1])
             self.assertEqual(self.ctl("edit", "cli-pw", "--no-password")[0], 0)
             self.assertFalse(json.loads(self.ctl("get", "cli-pw")[1])["protected"])
             code, _, err = self.ctl("new", "https://example.com", "--password-env", "UNSET_VAR_XYZ")

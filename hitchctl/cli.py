@@ -182,7 +182,7 @@ def run(args, api: Hitchly, out, err, confirm=input) -> int:
         if args.json:
             print(json.dumps(links, indent=2), file=out)
         else:
-            _print_table([[l["slug"] + (" 🔒" if l["protected"] else ""), l["clicks"],
+            _print_table([[l["slug"] + (" (pw)" if l["protected"] else ""), l["clicks"],
                            _ts(l["expires_at"]) + (" (expired)" if l["expired"] else ""),
                            ",".join(l["tags"]), l["url"]] for l in links],
                          ["SLUG", "CLICKS", "EXPIRES", "TAGS", "TARGET"], out)
