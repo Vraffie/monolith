@@ -24,6 +24,13 @@ export const ctx = {
     if (!res.ok) throw new Error((body && body.error) || res.statusText);
     return body;
   },
+  /** Authenticated download of binary data (e.g. the database backup). */
+  async blob(path) {
+    const res = await fetch(path, { headers: { Authorization: "Bearer " + token } });
+    if (res.status === 401) { signOut(); throw new Error("Invalid or expired token"); }
+    if (!res.ok) { let m = res.statusText; try { m = (await res.json()).error || m; } catch { /* not JSON */ } throw new Error(m); }
+    return res.blob();
+  },
   takePrefill() { const v = prefill; prefill = ""; return v; },
   toast,
 };

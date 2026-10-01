@@ -14,7 +14,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8080';
   const out = async n => (await p.locator('.out pre').nth(n).innerText());
 
   await p.goto(BASE+'/'); await p.waitForSelector('nav a');
-  ok('nav lists 16 tools', (await p.$$('nav a')).length === 16, String((await p.$$('nav a')).length));
+  ok('nav lists 22 tools', (await p.$$('nav a')).length === 22, String((await p.$$('nav a')).length));
 
   await go('base64'); await p.fill('textarea','hello'); await p.waitForTimeout(80);
   ok('base64 encode', (await out(0)) === 'aGVsbG8=', await out(0));

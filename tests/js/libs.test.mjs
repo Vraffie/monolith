@@ -225,3 +225,39 @@ test("urlparse: parse and clean tracking params", async () => {
   assert.equal(u.cleanUrl("https://example.com/p?utm_source=x").url, "https://example.com/p");
   assert.throws(() => u.parseUrl("example.com"), /complete URL/);
 });
+
+test("csv: quotes, newlines, delimiters, BOM, formula guard, round trip", async () => {
+  const c = await lib("csv");
+  assert.deepEqual(c.parseCsv('a,b,c\n1,"x,y","he said ""hi"""\r\n"multi\nline",,z\n'), [["a", "b", "c"], ["1", "x,y", 'he said "hi"'], ["multi\nline", "", "z"]]);
+  assert.deepEqual(c.parseCsv("﻿url;slug\nhttps://a.com;x", ";"), [["url", "slug"], ["https://a.com", "x"]]);
+  assert.deepEqual(c.parseCsv("a,b\n\n\n1,2"), [["a", "b"], ["1", "2"]]); // blank lines ignored
+  assert.deepEqual(c.parseCsv("a,b"), [["a", "b"]]); // no trailing newline
+  assert.deepEqual(c.parseCsv(""), []);
+  assert.throws(() => c.parseCsv('a,"unterminated'), /never closed/);
+  const { header, rows } = c.parseCsvObjects("url,slug\nhttps://a.com,s1\nhttps://b.com");
+  assert.deepEqual(header, ["url", "slug"]);
+  assert.deepEqual(rows, [{ url: "https://a.com", slug: "s1" }, { url: "https://b.com", slug: "" }]); // short rows padded
+  assert.equal(c.stringifyCsv([["a", "b,c", 'd"e', "f\ng"]]), 'a,"b,c","d""e","f\ng"\r\n');
+  assert.equal(c.stringifyCsv([["=SUM(A1)", "+1", "-2", "@x", "ok"]]), "'=SUM(A1),'+1,'-2,'@x,ok\r\n");
+  assert.equal(c.stringifyCsv([["=SUM(A1)"]], { safe: false }), "=SUM(A1)\r\n");
+  const original = [["x", "y,z", 'q"r', "line\nbreak", ""]];
+  assert.deepEqual(c.parseCsv(c.stringifyCsv(original)), original);
+});
+
+test("importmap: mapping, slug last segment, numbers, default tags, problems keep row numbers", async () => {
+  const { mapRows, chunk } = await lib("importmap");
+  const rows = [
+    { "Long URL": "https://a.com/1", "Short Link": "https://bit.ly/abc/", tags: "x; y", ttl_seconds: "60", max_visits: "" },
+    { "Long URL": "", "Short Link": "https://bit.ly/nourl" },
+    { "Long URL": " https://a.com/3 ", "Short Link": "", ttl_seconds: "abc" },
+    { "Long URL": "https://a.com/4" },
+  ];
+  const { items, problems } = mapRows(rows, { url: "Long URL", slug: "Short Link" }, { slugLastSegment: true, defaultTags: ["imported"] });
+  assert.deepEqual(items.map(i => i.row), [1, 4]);
+  assert.deepEqual(items[0].payload, { url: "https://a.com/1", slug: "abc", ttl_seconds: 60, tags: ["x", "y", "imported"] });
+  assert.deepEqual(items[1].payload, { url: "https://a.com/4", tags: ["imported"] });
+  assert.deepEqual(problems, [{ row: 2, error: "missing 'Long URL'" }, { row: 3, error: "ttl_seconds must be a whole number" }]);
+  assert.deepEqual(mapRows([{ url: "https://x.io", tags: ["a", "b"] }]).items[0].payload.tags, ["a", "b"]); // JSON arrays pass through
+  assert.deepEqual(chunk([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
+  assert.deepEqual(chunk([], 3), []);
+});
