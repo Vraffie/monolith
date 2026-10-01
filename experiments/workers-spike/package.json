@@ -1,0 +1,8 @@
+{
+  "name": "hitchly-workers-spike",
+  "private": true,
+  "type": "module",
+  "description": "Experiment: Hitchly's core on Cloudflare Workers + D1, tested locally with Miniflare. See docs/STACK-REVIEW.md.",
+  "scripts": { "test": "node --test spike.test.mjs" },
+  "devDependencies": { "esbuild": "^0.25.0", "miniflare": "^4.0.0" }
+}

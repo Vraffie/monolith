@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 from concurrent.futures import ThreadPoolExecutor
+import gzip
 import hashlib
 import hmac
 import threading
@@ -36,6 +37,8 @@ CSP = ("default-src 'none'; script-src 'self'; worker-src 'self'; style-src 'sel
        "base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
 STATIC_TYPES = {".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".html": "text/html; charset=utf-8",
                 ".svg": "image/svg+xml", ".json": "application/json", ".ico": "image/x-icon", ".txt": "text/plain; charset=utf-8"}
+_GZIP_CACHE: dict[str, bytes] = {}  # etag -> compressed bytes; a few dozen small files at most
+COMPRESSIBLE = {".js", ".css", ".html", ".svg", ".json", ".txt"}
 STATIC_PART = re.compile(r"^[A-Za-z0-9_-]+(\.[A-Za-z0-9]+)?$")
 
 
@@ -280,7 +283,14 @@ def make_handler(service: LinkService, config: Config, prober: Prober | None = N
                 return self._error(404, "not found")
             data = node.read_bytes()
             etag = '"' + hashlib.sha1(data).hexdigest()[:20] + '"'
-            headers = {"ETag": etag, "Cache-Control": "no-cache", "Content-Security-Policy": CSP}
+            headers = {"ETag": etag, "Cache-Control": "no-cache", "Content-Security-Policy": CSP, "Vary": "Accept-Encoding"}
+            if ext in COMPRESSIBLE and len(data) > 512 and "gzip" in self.headers.get("Accept-Encoding", "").lower():
+                etag = etag[:-1] + '-gz"'  # a different representation needs a different validator
+                if etag not in _GZIP_CACHE:
+                    if len(_GZIP_CACHE) > 256:
+                        _GZIP_CACHE.clear()
+                    _GZIP_CACHE[etag] = gzip.compress(data, 6, mtime=0)
+                data, headers["ETag"], headers["Content-Encoding"] = _GZIP_CACHE[etag], etag, "gzip"
             if self.headers.get("If-None-Match") == etag:
                 return self._send(304, b"", STATIC_TYPES[ext], headers)
             self._send(200, data, STATIC_TYPES[ext], headers)

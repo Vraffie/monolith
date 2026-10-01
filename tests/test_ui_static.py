@@ -59,6 +59,21 @@ class StaticTests(unittest.TestCase):
         status, body, _ = self.get("/ui/app.js", {"If-None-Match": etag})
         self.assertEqual((status, body), (304, b""))
 
+    def test_gzip_negotiation_and_revalidation(self):
+        import gzip
+        _, plain, r0 = self.get("/ui/app.js")
+        self.assertIsNone(r0.getheader("Content-Encoding"))
+        status, body, r = self.get("/ui/app.js", {"Accept-Encoding": "gzip, deflate"})
+        self.assertEqual((status, r.getheader("Content-Encoding"), r.getheader("Vary")), (200, "gzip", "Accept-Encoding"))
+        self.assertEqual(gzip.decompress(body), plain)          # same bytes after decoding
+        self.assertLess(len(body), len(plain) * 0.6)
+        etag = r.getheader("ETag")
+        self.assertNotEqual(etag, r0.getheader("ETag"))          # distinct validator per representation
+        self.assertEqual(self.get("/ui/app.js", {"Accept-Encoding": "gzip", "If-None-Match": etag})[0], 304)
+        self.assertEqual(self.get("/ui/app.js", {"Accept-Encoding": "identity"})[2].getheader("Content-Encoding"), None)
+        # tiny or non-text files are never compressed
+        self.assertIsNone(self.get("/ui/favicon.svg", {"Accept-Encoding": "gzip"})[2].getheader("Content-Encoding"))
+
     def test_path_traversal_and_disallowed_files(self):
         for path in ["/ui/../web.py", "/ui/%2e%2e/web.py", "/ui/tools/../../web.py", "/ui/..%2fweb.py",
                      "/ui/%2e%2e%2fconfig.py", "/ui/app.py", "/ui/", "/ui/nope.js", "/ui/a/b/c/d.js",

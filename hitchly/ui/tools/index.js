@@ -1,27 +1,76 @@
-// Tool registry. A tool is { id, title, group, blurb, keywords, needsAuth, mount(root, ctx) }.
-// Client-only tools work without signing in; tools that call the server set needsAuth.
-import links from "./links.js";
-import qr from "./qr.js";
-import tracer from "./tracer.js";
-import checker from "./checker.js";
-import bulk from "./bulk.js";
-import importTool from "./import.js";
-import exportTool from "./export.js";
-import maintenance from "./maintenance.js";
-import utm from "./utm.js";
-import urlparse from "./urlparse.js";
-import base64 from "./base64.js";
-import urlcodec from "./urlcodec.js";
-import jwt from "./jwt.js";
-import hash from "./hash.js";
-import uuid from "./uuid.js";
-import password from "./password.js";
-import json from "./json.js";
-import time from "./time.js";
-import color from "./color.js";
-import regex from "./regex.js";
-import text from "./text.js";
-import radix from "./radix.js";
-
+// Tool manifest. Metadata lives here so the navigation renders without loading any tool; each tool's code is fetched on demand
+// (opening Base64 used to download all 22 tools: 46 requests, 102 KB). tests/js/manifest.test.mjs fails if a tool's own
+// metadata drifts from this list. A tool module is { id, title, group, blurb, keywords, needsAuth, mount(root, ctx) }.
 export const GROUPS = ["Links", "QR & URLs", "Encode & decode", "Generate", "Format & convert", "Admin"];
-export const tools = [links, bulk, qr, tracer, utm, urlparse, base64, urlcodec, jwt, hash, uuid, password, json, time, color, regex, text, radix, checker, importTool, exportTool, maintenance];
+
+const entry = (file, id, title, group, blurb, keywords = "", needsAuth = false) =>
+  ({ id, title, group, blurb, keywords, needsAuth, load: () => import("./" + file).then(m => m.default) });
+
+export const tools = [
+  entry("links.js", "links", "Short links", "Links",
+    "Create, search, edit and track short links.",
+    "url shortener shorten link redirect", true),
+  entry("bulk.js", "bulk", "Bulk shorten", "Links",
+    "Shorten a whole list at once: one URL per line, optionally followed by a space and a custom slug. Up to 500 per run.",
+    "many urls list batch shorten csv", true),
+  entry("qr.js", "qr", "QR code generator", "QR & URLs",
+    "Make QR codes for links, Wi-Fi, contacts, email, SMS and locations. Generated in your browser: Wi-Fi passwords and contact details never leave this page.",
+    "qr wifi vcard barcode scan", false),
+  entry("tracer.js", "tracer", "Redirect tracer", "QR & URLs",
+    "See where a link really goes before you click it: every redirect hop, the final page's title and the HTTP status. Fetched by your Hitchly server, which refuses internal addresses.",
+    "unshorten expand redirect chain where does this link go preview title", true),
+  entry("utm.js", "utm", "UTM builder", "QR & URLs",
+    "Add campaign parameters to a URL. Existing query strings and #fragments are kept. Shorten the result with one click.",
+    "campaign tracking google analytics link tagging", false),
+  entry("urlparse.js", "url-parser", "URL parser & cleaner", "QR & URLs",
+    "Take a URL apart, and strip tracking parameters (utm_*, fbclid, gclid, …) before you share or shorten it.",
+    "query parameters tracking fbclid utm strip clean", false),
+  entry("base64.js", "base64", "Base64", "Encode & decode",
+    "Encode text to Base64 or decode it back. UTF-8 safe; accepts URL-safe input and missing padding.",
+    "encode decode binary base64url", false),
+  entry("urlcodec.js", "url-encode", "URL encode / decode", "Encode & decode",
+    "Percent-encode or decode text for use in URLs and query strings.",
+    "percent encoding uri query string", false),
+  entry("jwt.js", "jwt", "JWT decoder", "Encode & decode",
+    "Read a token's header and claims. It decodes only: the signature is NOT verified, so never treat the result as proof of who sent it. Runs entirely in your browser.",
+    "json web token bearer claims", false),
+  entry("hash.js", "hash", "Hash & HMAC", "Encode & decode",
+    "SHA-1/256/384/512 of text or a file, plus HMAC. Computed locally with the browser's crypto; nothing is uploaded. (MD5 is not offered: it is broken for security use.)",
+    "sha256 sha1 sha512 checksum hmac digest file", false),
+  entry("uuid.js", "uuid", "UUID generator", "Generate",
+    "Generate random v4 UUIDs or time-ordered v7 UUIDs (good database keys), and inspect an existing one.",
+    "guid v4 v7 identifier random", false),
+  entry("password.js", "password", "Password & token generator", "Generate",
+    "Cryptographically random passwords and tokens, generated in your browser with unbiased sampling. Nothing is sent or stored.",
+    "random secret api key strong", false),
+  entry("json.js", "json", "JSON formatter", "Format & convert",
+    "Validate, pretty-print or minify JSON, with line and column for errors.",
+    "pretty print minify validate sort keys", false),
+  entry("time.js", "time", "Timestamp converter", "Format & convert",
+    "Convert between Unix time (seconds or milliseconds, auto-detected), ISO dates and time zones.",
+    "unix epoch date timezone iso", false),
+  entry("color.js", "color", "Color converter & contrast", "Format & convert",
+    "Convert HEX / RGB / HSL and check WCAG contrast between a text and a background colour.",
+    "hex rgb hsl wcag accessibility", false),
+  entry("regex.js", "regex", "Regex tester", "Format & convert",
+    "Test a JavaScript regular expression against text. Matches, capture groups and named groups are listed; runaway patterns are stopped.",
+    "regular expression match groups javascript", false),
+  entry("text.js", "text", "Text utilities", "Format & convert",
+    "Change case, make a URL slug, and count words, characters and reading time.",
+    "case camel snake kebab slug word count characters", false),
+  entry("radix.js", "radix", "Number base converter", "Format & convert",
+    "Convert integers between binary, octal, decimal, hexadecimal and base 36. Arbitrarily large numbers are exact.",
+    "binary hex octal decimal base36 bigint", false),
+  entry("checker.js", "checker", "Dead-link checker", "Admin",
+    "Probe every short link's destination from the server and list the ones that no longer work. Redirects are followed; internal addresses are refused.",
+    "broken links 404 health check audit", true),
+  entry("import.js", "import", "Import links", "Admin",
+    "Load links from a CSV or JSON export (for example from another shortener). Map your column names, try a dry run first, and failed rows are listed with the reason.",
+    "csv json migrate bitly yourls kutt shlink bulk", true),
+  entry("export.js", "export", "Export links", "Admin",
+    "Download every link as JSON or CSV. Passwords are never exported. For a complete backup including click history, use Maintenance.",
+    "download csv json backup migrate", true),
+  entry("maintenance.js", "maintenance", "Maintenance", "Admin",
+    "Server status, removing expired links, and downloading a full database backup.",
+    "backup purge expired stats overview database status", true),
+];

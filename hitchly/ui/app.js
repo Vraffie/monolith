@@ -94,7 +94,9 @@ function currentId() {
   return (hash.match(/^#\/([a-z0-9-]+)/) || [])[1] || (serverless ? "base64" : "links");
 }
 
-function route() {
+let routeSeq = 0;
+async function route() {
+  const seq = ++routeSeq;  // a slower, older navigation must not overwrite a newer one
   const id = currentId();
   const tool = tools.find(t => t.id === id) || tools[0];
   for (const a of nav.querySelectorAll("a")) {
@@ -111,8 +113,17 @@ function route() {
     return;
   }
   if (tool.needsAuth && !token) { body.append(loginCard(route)); return; }
-  try { tool.mount(body, ctx); }
-  catch (e) { body.append(h("div", { class: "card err" }, "This tool failed to load: " + e.message)); console.error(e); }
+  body.append(h("p", { class: "muted" }, "Loading…"));
+  try {
+    const mod = await tool.load();  // fetched on first use, so opening one tool does not download all of them
+    if (seq !== routeSeq) return;
+    body.replaceChildren();
+    mod.mount(body, ctx);
+  } catch (e) {
+    if (seq !== routeSeq) return;
+    body.replaceChildren(h("div", { class: "card err" }, "This tool failed to load: " + e.message));
+    console.error(e);
+  }
 }
 
 document.getElementById("auth").addEventListener("click", () => {
