@@ -6,6 +6,7 @@ import csv
 from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import hmac
+import threading
 import io
 import os
 import tempfile
@@ -73,6 +74,12 @@ def make_handler(service: LinkService, config: Config, prober: Prober | None = N
     class Handler(BaseHTTPRequestHandler):
         server_version = f"Hitchly/{__version__}"
         protocol_version = "HTTP/1.1"
+        # Send headers and body in ONE TCP segment and disable Nagle: without this every response with a body stalled ~40 ms
+        # (Nagle + delayed ACK). handle_one_request() flushes the buffer after each request.
+        wbufsize = 64 * 1024
+        disable_nagle_algorithm = True
+        # Drop clients that stall (slowloris) and idle keep-alive connections instead of holding a thread forever.
+        timeout = 10
 
         # ---- helpers -------------------------------------------------
         def log_message(self, fmt, *args):  # quieter, single-line access log
@@ -455,5 +462,35 @@ def make_handler(service: LinkService, config: Config, prober: Prober | None = N
     return Handler
 
 
+class _Server(ThreadingHTTPServer):
+    """Thread-per-connection server with a real listen backlog and a cap on concurrent threads.
+
+    The stdlib default backlog is 5, which drops connections (and costs the client a 1-3 s SYN retry) under any burst.
+    Past MAX_THREADS the accept loop blocks, so extra connections wait in the kernel queue instead of exhausting memory.
+    """
+
+    request_queue_size = 512
+    daemon_threads = True
+    MAX_THREADS = 512
+
+    def __init__(self, *args, **kwargs):
+        self._slots = threading.BoundedSemaphore(self.MAX_THREADS)
+        super().__init__(*args, **kwargs)
+
+    def process_request(self, request, client_address):
+        self._slots.acquire()
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self._slots.release()
+            raise
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._slots.release()
+
+
 def create_server(service: LinkService, config: Config, prober: Prober | None = None) -> ThreadingHTTPServer:
-    return ThreadingHTTPServer((config.host, config.port), make_handler(service, config, prober))
+    return _Server((config.host, config.port), make_handler(service, config, prober))

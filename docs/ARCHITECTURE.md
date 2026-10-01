@@ -31,7 +31,7 @@ The SDK (`hitchly_client`) and CLI (`hitch`) sit outside this layering and consu
 - **Stats**: aggregate clicks with `date(ts,'unixepoch')` grouping over the `(link_id, ts)` index.
 
 ## Data model
-`links(id, slug UNIQUE, url, created_at, expires_at)` and
+`links(id, slug UNIQUE, url, created_at, expires_at, max_visits, password_hash, clicks, bot_clicks)` (the counters are updated together with each click row) and
 `clicks(id, link_id → links ON DELETE CASCADE, ts, referrer, user_agent, is_bot)`.
 The schema is versioned with `PRAGMA user_version` and evolved by the append-only `MIGRATIONS` list in `storage.py` (never edit a released step).
 
@@ -57,6 +57,7 @@ The schema is versioned with `PRAGMA user_version` and evolved by the append-onl
 - [0002 SQLite for storage](adr/0002-sqlite.md)
 - [0003 Single shared bearer token](adr/0003-single-token.md)
 - [0004 Clients use only the public API](adr/0004-clients-use-public-api.md)
+- [0005 Visit counters, WAL and server limits](adr/0005-sqlite-counters-wal-and-server-limits.md) (with measured before/after numbers)
 
 ## Scaling notes
 SQLite in WAL-capable mode handles thousands of redirects/s on one box. If you outgrow it,

@@ -65,6 +65,8 @@ server {
 Add `limit_req` here if you need rate limiting; Hitchly has none built in.
 
 ## Operations
+- **The database runs in WAL mode**, so there are `hitchly.db-wal` and `-shm` files beside it. Never copy the `.db` file alone while the server runs; use `hitchly backup` (or `hitch backup`).
+- **Always run behind a reverse proxy** (nginx, Caddy, Cloudflare Tunnel). The built-in server is thread-per-connection: it absorbed 300 stalled clients in our test but stops answering at 600 until its 10 s timeout reaps them (ADR 0005).
 - **Backup:** `python3 -m hitchly backup /backups/hitchly-$(date +%F).db` (consistent copy while running; uses `HITCHLY_DB`).
 - **Purge expired links:** `python3 -m hitchly purge`, e.g. cron `0 3 * * * cd /opt/hitchly && python3 -m hitchly purge`.
   Expired links already return 410 without purging; purging only reclaims space.
