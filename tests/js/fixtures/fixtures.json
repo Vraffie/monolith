@@ -1,0 +1,34 @@
+{
+  "photo-gps.jpg": {
+    "bytes": 1379,
+    "pixels": "ba557e8adfbd80457909ea807b35144dca8b63b974227b9c6f81ca635d211ade",
+    "size": [
+      64,
+      48
+    ]
+  },
+  "plain.jpg": {
+    "bytes": 995,
+    "pixels": "ba557e8adfbd80457909ea807b35144dca8b63b974227b9c6f81ca635d211ade",
+    "size": [
+      64,
+      48
+    ]
+  },
+  "meta.png": {
+    "bytes": 559,
+    "pixels": "5e9770b389ca44367baa6a870e2607065e57908a3dc00c9f51f4c22cd76188af",
+    "size": [
+      40,
+      30
+    ]
+  },
+  "meta.webp": {
+    "bytes": 494,
+    "pixels": "e2bab0aeccfc8cd4759956fbfe5260328de935e8e4c77de4fae27d4f865b2ef9",
+    "size": [
+      48,
+      32
+    ]
+  }
+}
