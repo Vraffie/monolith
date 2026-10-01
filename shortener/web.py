@@ -69,6 +69,7 @@ def make_handler(service: LinkService, config: Config):
             except ValueError:
                 raise ValidationError("invalid Content-Length") from None
             if length > MAX_BODY:
+                self.close_connection = True  # body left unread; don't parse it as the next request
                 raise ValidationError("request body too large")
             try:
                 data = json.loads(self.rfile.read(length) or b"{}")
@@ -105,6 +106,7 @@ def make_handler(service: LinkService, config: Config):
         def _require_auth(self) -> bool:
             if self._authorized():
                 return True
+            self.close_connection = True  # a POST body may be unread
             self._error(401, "missing or invalid token", {"WWW-Authenticate": "Bearer"})
             return False
 
@@ -154,6 +156,7 @@ def make_handler(service: LinkService, config: Config):
 
         def _post(self):
             if self.path != "/api/links":
+                self.close_connection = True
                 return self._error(404, "not found")
             if not self._require_auth():
                 return
