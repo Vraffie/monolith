@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import hmac
 import io
@@ -15,6 +16,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from . import __version__, qr
 from .config import Config
+from .probe import Prober
 from .ratelimit import RateLimiter
 from .domain import Conflict, Link, NotFound, PasswordRequired, ValidationError
 from .service import LinkService
@@ -57,7 +59,9 @@ def _csv_safe(value: str | None) -> str:
     return "'" + value if value[:1] in ("=", "+", "-", "@", "\t", "\r") else value
 
 
-def make_handler(service: LinkService, config: Config):
+def make_handler(service: LinkService, config: Config, prober: Prober | None = None):
+    prober = prober or Prober(allow_private=config.probe_allow_private)
+    probes = RateLimiter(config.probe_limit, 60) if config.probe_limit > 0 else None
     auth_failures = RateLimiter(max(1, config.auth_fail_limit), 60)
     creations = RateLimiter(config.create_limit, 60) if config.create_limit > 0 else None
     password_failures = RateLimiter(max(1, config.auth_fail_limit), 60)  # keyed by client + slug
@@ -294,8 +298,59 @@ def make_handler(service: LinkService, config: Config):
             fields = parse_qs(self.rfile.read(length).decode("utf-8", "replace"))
             self._redirect(slug, fields.get("password", [""])[0])
 
+        def _probe_budget(self, n: int):
+            """Returns an error-sending callable if the client is over its probe budget, else records n probes."""
+            if not probes:
+                return None
+            ip = self._client_ip()
+            wait = probes.blocked_for(ip)
+            if wait:
+                self.close_connection = True
+                return lambda: self._error(429, "too many URL checks, slow down", {"Retry-After": str(int(wait) + 1)})
+            for _ in range(n):
+                probes.record(ip)
+            return None
+
+        def _trace(self):
+            if not self._require_auth():
+                return
+            url = self._read_json().get("url")
+            if not isinstance(url, str) or not url.strip():
+                raise ValidationError("url is required")
+            if (refuse := self._probe_budget(1)):
+                return refuse()
+            self._json(200, prober.trace(url.strip()))
+
+        def _check_links(self):
+            if not self._require_auth():
+                return
+            slugs = self._read_json().get("slugs")
+            if not isinstance(slugs, list) or not 1 <= len(slugs) <= 25 or not all(isinstance(s, str) for s in slugs):
+                raise ValidationError("slugs must be a list of 1-25 slugs")
+            if (refuse := self._probe_budget(len(slugs))):
+                return refuse()
+            found = []
+            for slug in slugs:
+                try:
+                    found.append((slug, service.get(slug).url))
+                except NotFound:
+                    found.append((slug, None))
+
+            def run(item):
+                slug, url = item
+                if url is None:
+                    return {"slug": slug, "ok": False, "error": "not found", "status": None}
+                return {"slug": slug, "url": url, **prober.check(url)}
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                self._json(200, {"results": list(pool.map(run, found))})
+
         def _post(self):
-            if (m := SLUG_PATH.match(urlsplit(self.path).path)):
+            path = urlsplit(self.path).path
+            if path == "/api/tools/trace":
+                return self._trace()
+            if path == "/api/links/check":
+                return self._check_links()
+            if (m := SLUG_PATH.match(path)):
                 return self._submit_password(m.group(1))
             if self.path != "/api/links":
                 self.close_connection = True
@@ -337,5 +392,5 @@ def make_handler(service: LinkService, config: Config):
     return Handler
 
 
-def create_server(service: LinkService, config: Config) -> ThreadingHTTPServer:
-    return ThreadingHTTPServer((config.host, config.port), make_handler(service, config))
+def create_server(service: LinkService, config: Config, prober: Prober | None = None) -> ThreadingHTTPServer:
+    return ThreadingHTTPServer((config.host, config.port), make_handler(service, config, prober))

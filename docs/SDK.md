@@ -34,6 +34,7 @@ except HitchlyError as e:
 | `update(slug, url=None, ttl_seconds=…, tags=None, max_visits=…, password=…)` | `PATCH /api/links/{slug}` |
 | `delete(slug)` | `DELETE /api/links/{slug}` |
 | `stats(slug, days)` · `clicks_csv(slug)` · `qr_svg(slug, scale)` | stats / `clicks.csv` / `qr.svg` |
+| `trace(url)` · `check_links(slugs)` | `POST /api/tools/trace` · `POST /api/links/check` |
 | `metrics()` · `health()` | `/metrics`, `/health` |
 
 Failures raise `HitchlyError` with `.status` (HTTP code, or `None` when the server is unreachable).

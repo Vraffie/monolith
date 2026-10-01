@@ -287,3 +287,82 @@ class CreateLimitTests(unittest.TestCase):
             self.assertGreaterEqual(int(r.getheader("Retry-After")), 1)
         finally:
             server.shutdown(); server.server_close()
+
+
+class ProbeApiTests(unittest.TestCase):
+    """Server-side probing endpoints, against a local site (allow_private) and with the SSRF guard on."""
+
+    @classmethod
+    def setUpClass(cls):
+        from http.server import ThreadingHTTPServer
+        from tests.test_probe import SiteHandler
+        cls.site = ThreadingHTTPServer(("127.0.0.1", 0), SiteHandler)
+        threading.Thread(target=cls.site.serve_forever, daemon=True).start()
+        cls.site_url = f"http://127.0.0.1:{cls.site.server_port}"
+
+        def start(**kw):
+            cfg = Config(host="127.0.0.1", port=0, db_path=":memory:", token=TOKEN, auth_fail_limit=1000, **kw)
+            srv = create_server(LinkService(Storage(":memory:")), cfg)
+            threading.Thread(target=srv.serve_forever, daemon=True).start()
+            return srv
+        cls.open_srv, cls.guarded = start(probe_allow_private=True), start()
+
+    @classmethod
+    def tearDownClass(cls):
+        for s in (cls.site, cls.open_srv, cls.guarded):
+            s.shutdown()
+            s.server_close()
+
+    def call(self, srv, path, body, token=TOKEN):
+        c = http.client.HTTPConnection("127.0.0.1", srv.server_address[1], timeout=10)
+        c.request("POST", path, json.dumps(body), {"Authorization": f"Bearer {token}"} if token else {})
+        r = c.getresponse()
+        raw = r.read()
+        c.close()
+        return r.status, json.loads(raw) if raw else None
+
+    def test_trace_requires_auth_and_validates(self):
+        self.assertEqual(self.call(self.open_srv, "/api/tools/trace", {"url": self.site_url}, token=None)[0], 401)
+        self.assertEqual(self.call(self.open_srv, "/api/tools/trace", {})[0], 400)
+        self.assertEqual(self.call(self.open_srv, "/api/tools/trace", {"url": 5})[0], 400)
+
+    def test_trace_follows_redirects(self):
+        status, r = self.call(self.open_srv, "/api/tools/trace", {"url": self.site_url + "/a"})
+        self.assertEqual(status, 200)
+        self.assertEqual((r["ok"], [h["status"] for h in r["hops"]], r["final"]["title"]), (True, [302, 301, 200], "Hello World"))
+
+    def test_guard_blocks_internal_targets_by_default(self):
+        for url in (self.site_url + "/", "http://127.0.0.1:8080/", "http://169.254.169.254/latest/meta-data/", "http://localhost/", "http://[::1]/"):
+            with self.subTest(url=url):
+                status, r = self.call(self.guarded, "/api/tools/trace", {"url": url})
+                self.assertEqual(status, 200)
+                self.assertFalse(r["ok"])
+                self.assertEqual(r["hops"], [])  # nothing was requested
+                self.assertTrue(r["error"])
+
+    def test_check_links_batch(self):
+        for slug, path in (("okpage", "/c"), ("deadpg", "/missing"), ("redir1", "/a")):
+            self.call(self.open_srv, "/api/links", {"url": self.site_url + path, "slug": slug})
+        status, body = self.call(self.open_srv, "/api/links/check", {"slugs": ["okpage", "deadpg", "redir1", "nosuch"]})
+        self.assertEqual(status, 200)
+        res = {r["slug"]: r for r in body["results"]}
+        self.assertTrue(res["okpage"]["ok"]); self.assertTrue(res["redir1"]["ok"])
+        self.assertEqual((res["deadpg"]["ok"], res["deadpg"]["status"]), (False, 404))
+        self.assertEqual(res["nosuch"]["error"], "not found")
+        self.assertEqual([r["slug"] for r in body["results"]], ["okpage", "deadpg", "redir1", "nosuch"])  # order kept
+
+    def test_check_validation_and_auth(self):
+        self.assertEqual(self.call(self.open_srv, "/api/links/check", {"slugs": []})[0], 400)
+        self.assertEqual(self.call(self.open_srv, "/api/links/check", {"slugs": ["a"] * 26})[0], 400)
+        self.assertEqual(self.call(self.open_srv, "/api/links/check", {"slugs": [1]})[0], 400)
+        self.assertEqual(self.call(self.open_srv, "/api/links/check", {"slugs": ["a"]}, token=None)[0], 401)
+
+    def test_probe_rate_limit(self):
+        cfg = Config(host="127.0.0.1", port=0, db_path=":memory:", token=TOKEN, probe_limit=3, probe_allow_private=True)
+        srv = create_server(LinkService(Storage(":memory:")), cfg)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        try:
+            codes = [self.call(srv, "/api/tools/trace", {"url": self.site_url + "/c"})[0] for _ in range(4)]
+            self.assertEqual(codes, [200, 200, 200, 429])
+        finally:
+            srv.shutdown(); srv.server_close()

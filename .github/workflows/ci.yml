@@ -43,11 +43,13 @@ jobs:
       - run: npm install --no-save playwright && npx playwright install --with-deps chromium
       - name: Browser tests against a real server
         run: |
-          HITCHLY_TOKEN=ci-token HITCHLY_PORT=8080 HITCHLY_DB=/tmp/e2e.db python -m hitchly serve &
+          python tests/e2e/site.py 8087 &
+          HITCHLY_PROBE_ALLOW_PRIVATE=1 HITCHLY_TOKEN=ci-token HITCHLY_PORT=8080 HITCHLY_DB=/tmp/e2e.db python -m hitchly serve &
           sleep 2
           export BASE_URL=http://127.0.0.1:8080 HITCHLY_TOKEN=ci-token
           node tests/e2e/tools.cjs
           node tests/e2e/links.cjs
+          SITE_URL=http://127.0.0.1:8087 node tests/e2e/server-tools.cjs
 
   docker:
     runs-on: ubuntu-latest

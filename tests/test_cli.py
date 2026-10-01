@@ -156,6 +156,11 @@ class CliTests(unittest.TestCase):
         self.ctl("edit", "cli-cap", "--no-max-visits")
         self.assertIsNone(json.loads(self.ctl("get", "cli-cap")[1])["max_visits"])
 
+    def test_trace_refuses_internal_address(self):
+        code, out, _ = self.ctl("trace", "http://127.0.0.1:1/")
+        self.assertEqual(code, 1)
+        self.assertIn("FAILED", out)
+
     def test_check_reports_dead_links(self):
         self.ctl("new", f"{self.base}/health", "--slug", "chk-ok")
         self.ctl("new", "http://127.0.0.1:1/", "--slug", "chk-dead")

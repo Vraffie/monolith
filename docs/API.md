@@ -113,6 +113,17 @@ Cells beginning with `= + - @` are prefixed with `'` so spreadsheets don't evalu
 ### `GET /api/links/{slug}/qr.svg?scale=8` — QR code
 `image/svg+xml` QR code (error correction M, 4-module quiet zone) encoding the short URL. `scale` is pixels per module.
 
+### `POST /api/tools/trace` — follow a URL's redirects
+Body `{"url": "..."}`. The *server* fetches the URL (manually following redirects) and returns
+`{"ok": bool, "hops": [{"url","status","ip","ms","location"}], "final": {"url","status","content_type","title","description"}, "error": null|string}`.
+Failures (unresolvable, refused, private address, loop, > 10 redirects, HTTP ≥ 400) are reported inside the result with HTTP 200, not as API errors.
+Internal addresses are refused unless the server runs with `HITCHLY_PROBE_ALLOW_PRIVATE=1`; see the SSRF notes in ARCHITECTURE.md.
+Counts against `HITCHLY_PROBE_LIMIT` (default 60 URLs per client per minute, then `429`).
+
+### `POST /api/links/check` — dead-link check
+Body `{"slugs": ["a", "b"]}` (1-25 slugs). Probes each stored target (HEAD, GET fallback, up to 5 redirects) in parallel and returns
+`{"results": [{"slug","url","ok","status","hops","final_url","error","ms"}]}` in request order; unknown slugs yield `{"error": "not found"}`.
+
 ### `DELETE /api/links/{slug}` — delete
 Returns `204`. Click history is deleted with the link.
 

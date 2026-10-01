@@ -11,6 +11,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
   metrics `linkly_*` → `hitchly_*`.
 
 ### Added
+- Web UI is now a modular toolbox: Short links, QR generator (Wi-Fi, vCard, email, SMS, phone, location; generated in the browser), redirect tracer, UTM builder, URL parser/cleaner, Base64, URL encode/decode, JWT decoder, hash/HMAC, UUID, password/token generator, JSON formatter, timestamp converter, colour + contrast, regex tester, text utilities, base converter, dead-link checker. Client-side tools work without signing in.
+- `POST /api/tools/trace` and `POST /api/links/check` (server-side probing with SSRF protection); SDK `trace`/`check_links`; `hitch trace`.
+- Stricter CSP: no inline scripts or styles.
 - UI bookmarklet and `#new=<url>` prefill; `docs/INTEGRATIONS.md` recipes.
 - `hitch import` column mapping (`--url-col`, `--slug-col`, `--delimiter`, `--slug-last-segment`, `--default-tag`) and `--dry-run`; tolerates a UTF-8 BOM.
 - Password-protected links: salted-scrypt storage, no-JS form, 303 on success, no click until verified, per-client lockout. CLI `--ask-password`/`--password-env`/`--no-password`; UI password field.

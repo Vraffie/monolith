@@ -2,6 +2,8 @@
 // Client-only tools work without signing in; tools that call the server set needsAuth.
 import links from "./links.js";
 import qr from "./qr.js";
+import tracer from "./tracer.js";
+import checker from "./checker.js";
 import utm from "./utm.js";
 import urlparse from "./urlparse.js";
 import base64 from "./base64.js";
@@ -18,4 +20,4 @@ import text from "./text.js";
 import radix from "./radix.js";
 
 export const GROUPS = ["Links", "QR & URLs", "Encode & decode", "Generate", "Format & convert", "Admin"];
-export const tools = [links, qr, utm, urlparse, base64, urlcodec, jwt, hash, uuid, password, json, time, color, regex, text, radix];
+export const tools = [links, qr, tracer, utm, urlparse, base64, urlcodec, jwt, hash, uuid, password, json, time, color, regex, text, radix, checker];

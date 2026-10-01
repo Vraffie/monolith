@@ -30,6 +30,12 @@ The SDK (`hitchly_client`) and CLI (`hitch`) sit outside this layering and consu
 The schema is versioned with `PRAGMA user_version` and evolved by the append-only `MIGRATIONS` list in `storage.py` (never edit a released step).
 
 ## Security
+- **Server-side URL probing (tracer, dead-link checker) is an SSRF surface.** `hitchly/probe.py` allows only http/https and ports
+  80/443/8080/8443, rejects credentials in URLs, resolves the host itself and refuses private, loopback, link-local, multicast, reserved,
+  carrier-grade-NAT and embedded-IPv4 (mapped/6to4/NAT64) addresses, rejects a host if *any* answer is blocked, then connects to the
+  **validated IP** (so DNS rebinding cannot swap it afterwards), validates every redirect hop again and never follows redirects blindly.
+  It sends no cookies or credentials and caps time, hops and bytes. Opt out with `HITCHLY_PROBE_ALLOW_PRIVATE=1` only on a trusted LAN.
+  Probes are token-gated and rate limited (`HITCHLY_PROBE_LIMIT`).
 - Link passwords: salted scrypt (stdlib), constant-time verification, never serialised (`Link.password_hash` is excluded from `repr`), attempts rate limited per client+slug.
 - Bearer token compared with `hmac.compare_digest`; random token generated if unset.
 - Only `http`/`https` targets (blocks `javascript:`/`data:`), length and whitespace checks.

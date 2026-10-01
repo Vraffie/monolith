@@ -118,6 +118,14 @@ class Hitchly:
         _, raw, _ = self._request("GET", f"/api/links/{urllib.parse.quote(slug)}/qr.svg?scale={scale}")
         return raw.decode()
 
+    def trace(self, url: str) -> dict:
+        """Ask the server to follow a URL's redirects (SSRF-guarded). Returns hops and the final page."""
+        return self._json("POST", "/api/tools/trace", {"url": url})
+
+    def check_links(self, slugs: list[str]) -> list[dict]:
+        """Server-side dead-link check of up to 25 stored links."""
+        return self._json("POST", "/api/links/check", {"slugs": slugs})["results"]
+
     def metrics(self) -> str:
         _, raw, _ = self._request("GET", "/metrics")
         return raw.decode()

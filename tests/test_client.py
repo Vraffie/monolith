@@ -51,6 +51,12 @@ class ClientTests(unittest.TestCase):
             Hitchly(self.url, "wrong").list()
         self.assertEqual(cm.exception.status, 401)
 
+    def test_trace_is_ssrf_guarded(self):
+        r = self.api.trace("http://169.254.169.254/latest/meta-data/")
+        self.assertFalse(r["ok"])
+        self.assertEqual(r["hops"], [])
+        self.assertEqual(self.api.check_links(["no-such-slug"])[0]["error"], "not found")
+
     def test_unreachable(self):
         with self.assertRaises(HitchlyError) as cm:
             Hitchly("http://127.0.0.1:1", "x", timeout=1).health()

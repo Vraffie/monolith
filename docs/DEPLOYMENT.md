@@ -14,6 +14,8 @@ hardened for direct internet exposure: **put a TLS-terminating reverse proxy in 
 | Variable | Default | Notes |
 |----------|---------|-------|
 | `HITCHLY_AUTH_FAIL_LIMIT` | `10` | Failed token attempts per client per minute before `429` |
+| `HITCHLY_PROBE_LIMIT` | `60` | Server-side URL probes (redirect tracer, dead-link checker) per client per minute; `0` disables the limit |
+| `HITCHLY_PROBE_ALLOW_PRIVATE` | off | Let probes reach private/internal addresses. **SSRF risk**: only on a trusted network |
 | `HITCHLY_CREATE_LIMIT` | `60` | Links created per client per minute before `429`; `0` disables |
 | `HITCHLY_TRUST_PROXY` | off | Set to `1` **only** behind a proxy that overwrites `X-Forwarded-For`; otherwise every client appears as the proxy and shares one lockout bucket |
 

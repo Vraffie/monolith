@@ -17,6 +17,8 @@ class Config:
     token_generated: bool = False
     trust_proxy: bool = False  # take client IP from X-Forwarded-For (only behind a proxy you control)
     create_limit: int = 60  # POST /api/links per client per minute; 0 disables
+    probe_limit: int = 60  # server-side URL probes (trace / dead-link check) per client per minute; 0 disables
+    probe_allow_private: bool = False  # let probes reach private/internal addresses (SSRF risk; for trusted LANs only)
     auth_fail_limit: int = 10  # failed token attempts per client per minute before 429
 
     @classmethod
@@ -34,5 +36,7 @@ class Config:
             token_generated=generated,
             trust_proxy=env.get("HITCHLY_TRUST_PROXY", "").lower() in ("1", "true", "yes"),
             create_limit=int(env.get("HITCHLY_CREATE_LIMIT", "60")),
+            probe_limit=int(env.get("HITCHLY_PROBE_LIMIT", "60")),
+            probe_allow_private=env.get("HITCHLY_PROBE_ALLOW_PRIVATE", "").lower() in ("1", "true", "yes"),
             auth_fail_limit=int(env.get("HITCHLY_AUTH_FAIL_LIMIT", "10")),
         )

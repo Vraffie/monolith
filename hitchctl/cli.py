@@ -110,6 +110,9 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("qr", help="write a link's QR code as SVG (stdout, or -o FILE)")
     s.add_argument("slug"); s.add_argument("-o", "--output")
 
+    s = sub.add_parser("trace", help="follow a URL's redirects from the server (shows each hop and the final page title)")
+    s.add_argument("target")
+
     s = sub.add_parser("export", help="export all links")
     s.add_argument("--format", choices=["json", "csv"], default="json")
 
@@ -235,6 +238,14 @@ def run(args, api: Hitchly, out, err, confirm=input) -> int:
             print(f"wrote {args.output}", file=out)
         else:
             out.write(svg)
+    elif cmd == "trace":
+        r = api.trace(args.target)
+        for i, hop in enumerate(r["hops"], start=1):
+            print(f"{i}. {hop['status'] or 'ERR'}  {hop['url']}" + (f"  -> {hop['location']}" if hop["location"] else ""), file=out)
+        if r["final"] and r["final"]["title"]:
+            print(f"title: {r['final']['title']}", file=out)
+        print("OK" if r["ok"] else f"FAILED: {r['error']}", file=out)
+        return 0 if r["ok"] else 1
     elif cmd == "export":
         links = list(api.iter_links())
         if args.format == "json":
