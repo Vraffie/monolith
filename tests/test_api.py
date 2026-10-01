@@ -119,3 +119,26 @@ class ApiTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AuthLimitTests(unittest.TestCase):
+    def test_brute_force_gets_429_then_valid_token_also_blocked(self):
+        config = Config(host="127.0.0.1", port=0, db_path=":memory:", token=TOKEN, auth_fail_limit=3)
+        server = create_server(LinkService(Storage(":memory:")), config)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        port = server.server_address[1]
+
+        def get(token):
+            c = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+            c.request("GET", "/api/links", headers={"Authorization": f"Bearer {token}"})
+            r = c.getresponse(); r.read(); c.close()
+            return r
+
+        try:
+            self.assertEqual([get("bad").status for _ in range(3)], [401, 401, 401])
+            r = get("bad")
+            self.assertEqual(r.status, 429)
+            self.assertGreaterEqual(int(r.getheader("Retry-After")), 1)
+            self.assertEqual(get(TOKEN).status, 429)  # lockout applies even to the right token
+        finally:
+            server.shutdown(); server.server_close()

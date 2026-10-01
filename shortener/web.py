@@ -11,6 +11,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from . import __version__
 from .config import Config
+from .ratelimit import RateLimiter
 from .domain import Conflict, Link, NotFound, ValidationError
 from .service import LinkService
 
@@ -29,6 +30,8 @@ def _int_param(qs: dict, name: str, default: int) -> int:
 
 
 def make_handler(service: LinkService, config: Config):
+    auth_failures = RateLimiter(max(1, config.auth_fail_limit), 60)
+
     class Handler(BaseHTTPRequestHandler):
         server_version = f"Linkly/{__version__}"
         protocol_version = "HTTP/1.1"
@@ -103,10 +106,24 @@ def make_handler(service: LinkService, config: Config):
                 print(f"internal error: {e!r}", flush=True)
                 self._error(500, "internal error")
 
+        def _client_ip(self) -> str:
+            if config.trust_proxy:
+                forwarded = self.headers.get("X-Forwarded-For", "")
+                if forwarded:
+                    return forwarded.split(",")[-1].strip()  # last hop = added by our own proxy
+            return self.client_address[0]
+
         def _require_auth(self) -> bool:
+            ip = self._client_ip()
+            self.close_connection = True  # a POST body may be unread on any early return below
+            wait = auth_failures.blocked_for(ip)
+            if wait:
+                self._error(429, "too many failed attempts", {"Retry-After": str(int(wait) + 1)})
+                return False
             if self._authorized():
+                self.close_connection = False
                 return True
-            self.close_connection = True  # a POST body may be unread
+            auth_failures.record(ip)
             self._error(401, "missing or invalid token", {"WWW-Authenticate": "Bearer"})
             return False
 
