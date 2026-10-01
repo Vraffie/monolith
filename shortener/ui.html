@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Linkly</title>
+<style>
+  :root { --bg:#f7f7f5; --fg:#1c1c1a; --muted:#6b6b66; --card:#fff; --line:#e2e2dc; --accent:#2f5bea; --bad:#c0392b; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#161616; --fg:#eee; --muted:#9a9a94; --card:#1f1f1f; --line:#333; --accent:#7b9bff; --bad:#ff7a6b; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font:16px/1.5 system-ui,sans-serif; background:var(--bg); color:var(--fg); }
+  main { max-width:760px; margin:0 auto; padding:24px 16px 64px; }
+  h1 { font-size:1.5rem; margin:0 0 16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
+  form { display:grid; gap:10px; grid-template-columns:1fr 1fr; }
+  form .full { grid-column:1/-1; }
+  label { display:block; font-size:.8rem; color:var(--muted); margin-bottom:2px; }
+  input, select { width:100%; padding:8px 10px; font:inherit; color:inherit; background:var(--bg); border:1px solid var(--line); border-radius:6px; }
+  button { font:inherit; padding:8px 14px; border-radius:6px; border:1px solid var(--accent); background:var(--accent); color:#fff; cursor:pointer; }
+  button.ghost { background:none; color:var(--accent); }
+  button.danger { background:none; color:var(--bad); border-color:var(--bad); }
+  .row { display:flex; gap:8px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+  .link { padding:12px 0; border-top:1px solid var(--line); }
+  .link:first-child { border-top:0; }
+  .short { font-weight:600; word-break:break-all; }
+  .target { color:var(--muted); font-size:.85rem; word-break:break-all; }
+  .meta { color:var(--muted); font-size:.8rem; }
+  .err { color:var(--bad); min-height:1.4em; }
+  .stats { margin-top:8px; font-size:.85rem; }
+  .bar { display:inline-block; height:8px; background:var(--accent); border-radius:2px; vertical-align:middle; margin-right:6px; }
+  @media (max-width:520px) { form { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="row"><h1>Linkly</h1><button class="ghost" id="logout" hidden>Sign out</button></div>
+
+  <div class="card" id="login">
+    <form id="loginForm">
+      <div class="full"><label for="token">API token</label><input id="token" type="password" autocomplete="current-password" required></div>
+      <div class="full"><button>Sign in</button></div>
+    </form>
+  </div>
+
+  <div id="app" hidden>
+    <div class="card">
+      <form id="createForm">
+        <div class="full"><label for="url">Long URL</label><input id="url" type="url" placeholder="https://example.com/a/very/long/path" required></div>
+        <div><label for="slug">Custom slug (optional)</label><input id="slug" pattern="[A-Za-z0-9_-]{3,32}" placeholder="my-link"></div>
+        <div><label for="ttl">Expires after</label>
+          <select id="ttl"><option value="">Never</option><option value="3600">1 hour</option><option value="86400">1 day</option><option value="604800">1 week</option><option value="2592000">30 days</option></select></div>
+        <div class="full row"><button>Shorten</button><span class="err" id="createErr" role="alert"></span></div>
+      </form>
+    </div>
+    <div class="card"><div id="list"></div><div class="meta" id="empty" hidden>No links yet.</div></div>
+  </div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+let token = localStorage.getItem("linkly_token") || "";
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, { ...opts, headers: { "Authorization": "Bearer " + token, "Content-Type": "application/json" } });
+  if (res.status === 401) { signOut(); throw new Error("Invalid token"); }
+  if (res.status === 204) return null;
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+function el(tag, props = {}, ...kids) {
+  const e = Object.assign(document.createElement(tag), props);
+  e.append(...kids);
+  return e;
+}
+function signOut() { token = ""; localStorage.removeItem("linkly_token"); render(); }
+function fmt(ts) { return new Date(ts * 1000).toLocaleString(); }
+
+async function showStats(link, box) {
+  if (box.childNodes.length) { box.replaceChildren(); return; }
+  const s = await api(`/api/links/${link.slug}/stats?days=7`);
+  const max = Math.max(1, ...s.clicks_per_day.map(d => d.clicks));
+  box.append(el("div", {}, `${s.total_clicks} total clicks. Last 7 days:`));
+  if (!s.clicks_per_day.length) box.append(el("div", { className: "meta" }, "No clicks in the last 7 days."));
+  for (const d of s.clicks_per_day) {
+    const bar = el("span", { className: "bar" }); bar.style.width = (d.clicks / max * 120 + 4) + "px";
+    box.append(el("div", {}, bar, `${d.day}: ${d.clicks}`));
+  }
+  if (s.top_referrers.length) box.append(el("div", { className: "meta" }, "Top referrers: " + s.top_referrers.map(r => `${r.referrer} (${r.clicks})`).join(", ")));
+}
+
+async function loadLinks() {
+  const { links } = await api("/api/links?limit=100");
+  const list = $("list"); list.replaceChildren();
+  $("empty").hidden = links.length > 0;
+  for (const l of links) {
+    const stats = el("div", { className: "stats" });
+    const copy = el("button", { className: "ghost", textContent: "Copy" });
+    copy.onclick = async () => { await navigator.clipboard.writeText(l.short_url); copy.textContent = "Copied"; setTimeout(() => copy.textContent = "Copy", 1200); };
+    const st = el("button", { className: "ghost", textContent: "Stats" }); st.onclick = () => showStats(l, stats);
+    const del = el("button", { className: "danger", textContent: "Delete" });
+    del.onclick = async () => { if (confirm(`Delete ${l.slug}?`)) { await api(`/api/links/${l.slug}`, { method: "DELETE" }); loadLinks(); } };
+    list.append(el("div", { className: "link" },
+      el("div", { className: "row" }, el("a", { className: "short", href: l.short_url, target: "_blank", rel: "noopener", textContent: l.short_url }), el("div", {}, copy, " ", st, " ", del)),
+      el("div", { className: "target", textContent: l.url }),
+      el("div", { className: "meta", textContent: `${l.clicks} clicks · created ${fmt(l.created_at)}` + (l.expires_at ? (l.expired ? " · EXPIRED" : ` · expires ${fmt(l.expires_at)}`) : "") }),
+      stats));
+  }
+}
+
+function render() {
+  $("login").hidden = !!token; $("app").hidden = !token; $("logout").hidden = !token;
+  if (token) loadLinks().catch(() => {});
+}
+$("loginForm").onsubmit = e => { e.preventDefault(); token = $("token").value.trim(); localStorage.setItem("linkly_token", token); render(); };
+$("logout").onclick = signOut;
+$("createForm").onsubmit = async e => {
+  e.preventDefault(); $("createErr").textContent = "";
+  const body = { url: $("url").value };
+  if ($("slug").value) body.slug = $("slug").value;
+  if ($("ttl").value) body.ttl_seconds = Number($("ttl").value);
+  try { await api("/api/links", { method: "POST", body: JSON.stringify(body) }); e.target.reset(); loadLinks(); }
+  catch (err) { $("createErr").textContent = err.message; }
+};
+render();
+</script>
+</body>
+</html>
