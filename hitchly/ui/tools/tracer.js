@@ -16,7 +16,8 @@ export default {
         const r = await ctx.api("/api/tools/trace", { method: "POST", body: JSON.stringify({ url: url.value.trim() }) });
         const rows = r.hops.map((hop, i) => h("tr", {}, h("td", {}, i + 1), h("td", {}, pill(hop.status)), h("td", { class: "mono" }, hop.url), h("td", {}, hop.ms == null ? "" : hop.ms + " ms")));
         out.append(h("div", { class: "card" }, h("p", {}, h("strong", {}, r.ok ? "Reachable" : "Problem: " + r.error), r.hops.length > 1 ? ` · ${r.hops.length - 1} redirect${r.hops.length === 2 ? "" : "s"}` : ""),
-          rows.length ? h("table", {}, h("tr", {}, ["#", "Status", "URL", "Time"].map(t => h("th", {}, t))), rows) : null),
+          rows.length ? h("table", {}, h("tr", {}, ["#", "Status", "URL", "Time"].map(t => h("th", {}, t))), rows) : null,
+          r.hops.length ? h("p", { class: "muted" }, h("a", { href: "#/http" }, "What do these status codes mean?"), " (301 vs 302, 307 vs 308…)") : null),
           r.final ? h("div", { class: "card" }, h("div", { class: "muted" }, "Final destination"), h("div", { class: "mono" }, r.final.url),
             r.final.title ? h("p", {}, h("strong", {}, r.final.title)) : null, r.final.description ? h("p", { class: "muted" }, r.final.description) : null,
             h("div", { class: "muted" }, r.final.content_type)) : null);

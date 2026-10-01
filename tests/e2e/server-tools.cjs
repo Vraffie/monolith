@@ -22,6 +22,7 @@ const TOKEN = process.env.HITCHLY_TOKEN || 'smoke';
   ok('tracer shows 2 redirects', txt.includes('2 redirects'), txt.slice(0, 300));
   ok('tracer shows final title', txt.includes('Hello World'));
   ok('tracer shows each hop', txt.includes('/b') && txt.includes('/c?x=1'));
+  ok('tracer links to the status-code reference', await p.isVisible('main a[href="#/http"]'));
 
   await p.fill('main input[type=url]', SITE + '/missing'); await p.click('button:has-text("Trace")');
   await p.waitForSelector('text=Problem: HTTP 404', { timeout: 8000 }); ok('tracer reports 404', true);
