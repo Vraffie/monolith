@@ -9,6 +9,7 @@ from .domain import (
     Conflict,
     Link,
     NotFound,
+    ValidationError,
     generate_slug,
     validate_slug,
     validate_ttl,
@@ -39,6 +40,26 @@ class LinkService:
             except Conflict:
                 continue
         raise RuntimeError("could not allocate a unique slug")
+
+    def update(self, slug: str, changes: dict) -> Link:
+        """Edit a link. Only `url` and `ttl_seconds` may change; the slug is permanent.
+
+        `ttl_seconds` restarts the countdown from now; `None` removes the expiry.
+        """
+        unknown = set(changes) - {"url", "ttl_seconds"}
+        if unknown:
+            raise ValidationError(f"cannot change: {', '.join(sorted(unknown))}")
+        if not changes:
+            raise ValidationError("nothing to update (send url and/or ttl_seconds)")
+        self.get(slug)  # 404 before validating
+        url = validate_url(changes["url"]) if "url" in changes else None
+        set_expiry = "ttl_seconds" in changes
+        ttl = validate_ttl(changes.get("ttl_seconds"))
+        self.storage.update_link(slug, url, self.clock() + ttl if ttl else None, set_expiry)
+        return self.get(slug)
+
+    def export_clicks(self, slug: str) -> list[tuple[int, str | None, str | None]]:
+        return self.storage.list_clicks(self.get(slug).id)
 
     def get(self, slug: str) -> Link:
         link = self.storage.get_link(slug)

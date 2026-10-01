@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import csv
 import hmac
+import io
 import json
+from datetime import datetime, timezone
 import re
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
@@ -18,6 +21,7 @@ from .service import LinkService
 MAX_BODY = 8 * 1024
 SLUG_PATH = re.compile(r"^/([A-Za-z0-9_-]{1,64})$")
 API_LINK = re.compile(r"^/api/links/([A-Za-z0-9_-]{1,64})$")
+API_CLICKS = re.compile(r"^/api/links/([A-Za-z0-9_-]{1,64})/clicks\.csv$")
 API_STATS = re.compile(r"^/api/links/([A-Za-z0-9_-]{1,64})/stats$")
 CSP = "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:"
 
@@ -27,6 +31,12 @@ def _int_param(qs: dict, name: str, default: int) -> int:
         return int(qs.get(name, [default])[0])
     except ValueError:
         raise ValidationError(f"{name} must be an integer") from None
+
+
+def _csv_safe(value: str | None) -> str:
+    """Neutralise spreadsheet formula injection: referrer/UA are attacker-controlled."""
+    value = value or ""
+    return "'" + value if value[:1] in ("=", "+", "-", "@", "\t", "\r") else value
 
 
 def make_handler(service: LinkService, config: Config):
@@ -137,6 +147,9 @@ def make_handler(service: LinkService, config: Config):
         def do_POST(self):
             self._dispatch(self._post)
 
+        def do_PATCH(self):
+            self._dispatch(self._patch)
+
         def do_DELETE(self):
             self._dispatch(self._delete)
 
@@ -154,6 +167,18 @@ def make_handler(service: LinkService, config: Config):
                     return
                 links, total = service.list(_int_param(qs, "limit", 50), _int_param(qs, "offset", 0))
                 return self._json(200, {"total": total, "links": [self._link_json(l) for l in links]})
+            if m := API_CLICKS.match(path):
+                if not self._require_auth():
+                    return
+                slug = m.group(1)
+                out = io.StringIO()
+                w = csv.writer(out)
+                w.writerow(["timestamp_utc", "referrer", "user_agent"])
+                for ts, ref, ua in service.export_clicks(slug):
+                    iso = datetime.fromtimestamp(ts, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                    w.writerow([iso, _csv_safe(ref), _csv_safe(ua)])
+                return self._send(200, out.getvalue().encode(), "text/csv; charset=utf-8",
+                                  {"Content-Disposition": f'attachment; filename="{slug}-clicks.csv"'})
             if m := API_STATS.match(path):
                 if not self._require_auth():
                     return
@@ -180,6 +205,16 @@ def make_handler(service: LinkService, config: Config):
             body = self._read_json()
             link = service.create(body.get("url"), body.get("slug"), body.get("ttl_seconds"))
             self._json(201, self._link_json(link), {"Location": f"/api/links/{link.slug}"})
+
+        def _patch(self):
+            m = API_LINK.match(urlsplit(self.path).path)
+            if not m:
+                self.close_connection = True
+                return self._error(404, "not found")
+            if not self._require_auth():
+                return
+            link = service.update(m.group(1), self._read_json())
+            self._json(200, self._link_json(link))
 
         def _delete(self):
             m = API_LINK.match(urlsplit(self.path).path)

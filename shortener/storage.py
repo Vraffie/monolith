@@ -73,6 +73,25 @@ class Storage:
             row = conn.execute(_LINK_SELECT + " WHERE l.slug = ?", (slug,)).fetchone()
         return _row_to_link(row) if row else None
 
+    def update_link(self, slug: str, url: str | None, expires_at: int | None, set_expiry: bool) -> bool:
+        sets, args = [], []
+        if url is not None:
+            sets.append("url = ?"); args.append(url)
+        if set_expiry:
+            sets.append("expires_at = ?"); args.append(expires_at)
+        if not sets:
+            return self.get_link(slug) is not None
+        with self._conn() as conn:
+            return conn.execute(f"UPDATE links SET {', '.join(sets)} WHERE slug = ?", (*args, slug)).rowcount > 0
+
+    def list_clicks(self, link_id: int, limit: int = 10000) -> list[tuple[int, str | None, str | None]]:
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT ts, referrer, user_agent FROM clicks WHERE link_id = ? ORDER BY ts, id LIMIT ?",
+                (link_id, limit),
+            ).fetchall()
+        return [(r["ts"], r["referrer"], r["user_agent"]) for r in rows]
+
     def list_links(self, limit: int = 50, offset: int = 0) -> list[Link]:
         with self._conn() as conn:
             rows = conn.execute(

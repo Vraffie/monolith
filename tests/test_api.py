@@ -48,6 +48,8 @@ class ApiTests(unittest.TestCase):
         payload = None
         if raw and res.getheader("Content-Type", "").startswith("application/json"):
             payload = json.loads(raw)
+        elif raw:
+            payload = raw.decode()  # non-JSON bodies (e.g. CSV, metrics) come back as text
         return res.status, payload, res
 
     def test_health_and_ui_are_public(self):
@@ -108,6 +110,25 @@ class ApiTests(unittest.TestCase):
             self.assertTrue(link["expired"])
         finally:
             type(self).now -= 31
+
+    def test_patch(self):
+        self.request("POST", "/api/links", {"url": "https://a.com", "slug": "patchme", "ttl_seconds": 99})
+        status, link, _ = self.request("PATCH", "/api/links/patchme", {"url": "https://b.com", "ttl_seconds": None})
+        self.assertEqual((status, link["url"], link["expires_at"]), (200, "https://b.com", None))
+        self.assertEqual(self.request("PATCH", "/api/links/patchme", {"slug": "x"})[0], 400)
+        self.assertEqual(self.request("PATCH", "/api/links/nope", {"url": "https://b.com"})[0], 404)
+        self.assertEqual(self.request("PATCH", "/api/links/patchme", {"url": "https://b.com"}, token=None)[0], 401)
+
+    def test_clicks_csv_neutralises_formulas(self):
+        self.request("POST", "/api/links", {"url": "https://a.com", "slug": "csvtest"})
+        self.request("GET", "/csvtest", token=None, headers={"Referer": "=HYPERLINK(\"http://evil\")"})
+        status, body, res = self.request("GET", "/api/links/csvtest/clicks.csv")
+        self.assertEqual(status, 200)
+        self.assertEqual(res.getheader("Content-Type"), "text/csv; charset=utf-8")
+        lines = body.splitlines()
+        self.assertEqual(lines[0], "timestamp_utc,referrer,user_agent")
+        self.assertIn("\"'=HYPERLINK", lines[1])  # leading quote defuses the formula
+        self.assertEqual(self.request("GET", "/api/links/csvtest/clicks.csv", token=None)[0], 401)
 
     def test_list(self):
         self.request("POST", "/api/links", {"url": "https://a.com", "slug": "listed"})

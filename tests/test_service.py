@@ -69,6 +69,34 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(len(self.svc.stats("old", days=7)["clicks_per_day"]), 1)
         self.assertEqual(len(self.svc.stats("old", days=30)["clicks_per_day"]), 2)
 
+    def test_update_url_and_expiry(self):
+        self.svc.create("https://a.com", slug="edit", ttl_seconds=60)
+        link = self.svc.update("edit", {"url": "https://b.com"})
+        self.assertEqual((link.url, link.expires_at), ("https://b.com", self.now + 60))  # expiry untouched
+        self.assertEqual(self.svc.update("edit", {"ttl_seconds": 120}).expires_at, self.now + 120)
+        self.assertIsNone(self.svc.update("edit", {"ttl_seconds": None}).expires_at)  # clear
+
+    def test_update_rejects_bad_input(self):
+        self.svc.create("https://a.com", slug="edit")
+        for bad in [{}, {"slug": "new"}, {"url": "ftp://x"}, {"ttl_seconds": 0}]:
+            with self.subTest(bad=bad), self.assertRaises(ValidationError):
+                self.svc.update("edit", bad)
+        with self.assertRaises(NotFound):
+            self.svc.update("missing", {"url": "https://x.com"})
+        self.assertEqual(self.svc.get("edit").url, "https://a.com")
+
+    def test_update_revives_expired_link(self):
+        self.svc.create("https://a.com", slug="old", ttl_seconds=10)
+        self.now += 20
+        self.assertIsNone(self.svc.resolve("old"))
+        self.svc.update("old", {"ttl_seconds": None})
+        self.assertEqual(self.svc.resolve("old"), "https://a.com")
+
+    def test_export_clicks(self):
+        self.svc.create("https://a.com", slug="exp")
+        self.svc.resolve("exp", "https://r/", "UA")
+        self.assertEqual(self.svc.export_clicks("exp"), [(self.now, "https://r/", "UA")])
+
 
 if __name__ == "__main__":
     unittest.main()
