@@ -108,13 +108,23 @@ async function loadLinks() {
       try { await api(`/api/links/${l.slug}`, { method: "PATCH", body: JSON.stringify(body) }); loadLinks(); }
       catch (err) { alert(err.message); }
     };
+    const qrBox = el("div", { className: "stats" });
+    const qrBtn = el("button", { className: "ghost", textContent: "QR" });
+    qrBtn.onclick = async () => {
+      if (qrBox.childNodes.length) { qrBox.replaceChildren(); return; }
+      const res = await fetch(`/api/links/${l.slug}/qr.svg`, { headers: { "Authorization": "Bearer " + token } });
+      if (!res.ok) return;
+      const img = el("img", { alt: "QR code for " + l.short_url, width: 200, height: 200 });
+      img.src = "data:image/svg+xml;utf8," + encodeURIComponent(await res.text());
+      qrBox.append(img);
+    };
     const del = el("button", { className: "danger", textContent: "Delete" });
     del.onclick = async () => { if (confirm(`Delete ${l.slug}?`)) { await api(`/api/links/${l.slug}`, { method: "DELETE" }); loadLinks(); } };
     list.append(el("div", { className: "link" },
-      el("div", { className: "row" }, el("a", { className: "short", href: l.short_url, target: "_blank", rel: "noopener", textContent: l.short_url }), el("div", {}, copy, " ", st, " ", edit, " ", del)),
+      el("div", { className: "row" }, el("a", { className: "short", href: l.short_url, target: "_blank", rel: "noopener", textContent: l.short_url }), el("div", {}, copy, " ", st, " ", qrBtn, " ", edit, " ", del)),
       el("div", { className: "target", textContent: l.url }),
       el("div", { className: "meta", textContent: `${l.clicks} clicks · created ${fmt(l.created_at)}` + (l.expires_at ? (l.expired ? " · EXPIRED" : ` · expires ${fmt(l.expires_at)}`) : "") }),
-      stats));
+      stats, qrBox));
   }
 }
 

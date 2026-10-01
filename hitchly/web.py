@@ -12,7 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 from urllib.parse import parse_qs, urlsplit
 
-from . import __version__
+from . import __version__, qr
 from .config import Config
 from .ratelimit import RateLimiter
 from .domain import Conflict, Link, NotFound, ValidationError
@@ -22,6 +22,7 @@ MAX_BODY = 8 * 1024
 SLUG_PATH = re.compile(r"^/([A-Za-z0-9_-]{1,64})$")
 API_LINK = re.compile(r"^/api/links/([A-Za-z0-9_-]{1,64})$")
 API_CLICKS = re.compile(r"^/api/links/([A-Za-z0-9_-]{1,64})/clicks\.csv$")
+API_QR = re.compile(r"^/api/links/([A-Za-z0-9_-]{1,64})/qr\.svg$")
 API_STATS = re.compile(r"^/api/links/([A-Za-z0-9_-]{1,64})/stats$")
 CSP = "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:"
 
@@ -182,6 +183,15 @@ def make_handler(service: LinkService, config: Config):
                     return
                 links, total = service.list(_int_param(qs, "limit", 50), _int_param(qs, "offset", 0))
                 return self._json(200, {"total": total, "links": [self._link_json(l) for l in links]})
+            if m := API_QR.match(path):
+                if not self._require_auth():
+                    return
+                link = service.get(m.group(1))
+                try:
+                    svg = qr.to_svg(f"{self._origin()}/{link.slug}", scale=_int_param(qs, "scale", 8))
+                except qr.QRTooLong:
+                    raise ValidationError("short URL too long for a QR code") from None
+                return self._send(200, svg.encode(), "image/svg+xml")
             if m := API_CLICKS.match(path):
                 if not self._require_auth():
                     return

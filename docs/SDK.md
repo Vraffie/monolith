@@ -32,7 +32,7 @@ except HitchlyError as e:
 | `get(slug)` · `list(limit, offset)` · `iter_links(page_size)` | `GET /api/links…` |
 | `update(slug, url=None, ttl_seconds=…)` | `PATCH /api/links/{slug}` |
 | `delete(slug)` | `DELETE /api/links/{slug}` |
-| `stats(slug, days)` · `clicks_csv(slug)` | stats / `clicks.csv` |
+| `stats(slug, days)` · `clicks_csv(slug)` · `qr_svg(slug, scale)` | stats / `clicks.csv` / `qr.svg` |
 | `metrics()` · `health()` | `/metrics`, `/health` |
 
 Failures raise `HitchlyError` with `.status` (HTTP code, or `None` when the server is unreachable).

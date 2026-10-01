@@ -21,7 +21,7 @@ class ApiTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.now = 1_700_000_000
-        config = Config(host="127.0.0.1", port=0, db_path=":memory:", token=TOKEN)
+        config = Config(host="127.0.0.1", port=0, db_path=":memory:", token=TOKEN, auth_fail_limit=1000)
         cls.service = LinkService(Storage(":memory:"), clock=lambda: cls.now)
         cls.server = create_server(cls.service, config)
         cls.port = cls.server.server_address[1]
@@ -120,6 +120,14 @@ class ApiTests(unittest.TestCase):
         self.assertTrue(res.getheader("Content-Type").startswith("text/plain"))
         for name in ("hitchly_links ", "hitchly_links_expired ", "hitchly_clicks_total "):
             self.assertIn(name, body)
+
+    def test_qr_svg(self):
+        self.request("POST", "/api/links", {"url": "https://a.com", "slug": "qrme"})
+        status, body, res = self.request("GET", "/api/links/qrme/qr.svg")
+        self.assertEqual((status, res.getheader("Content-Type")), (200, "image/svg+xml"))
+        self.assertTrue(body.startswith("<svg"))
+        self.assertEqual(self.request("GET", "/api/links/qrme/qr.svg", token=None)[0], 401)
+        self.assertEqual(self.request("GET", "/api/links/missing/qr.svg")[0], 404)
 
     def test_patch(self):
         self.request("POST", "/api/links", {"url": "https://a.com", "slug": "patchme", "ttl_seconds": 99})

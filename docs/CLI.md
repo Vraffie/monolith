@@ -17,6 +17,7 @@ export HITCHLY_TOKEN=...                    # required (or --token)
 | `hitch rm SLUG [-y]` | Delete (asks for confirmation unless `-y`) |
 | `hitch stats SLUG [--days N]` | Totals, per-day bars, top referrers |
 | `hitch clicks SLUG` | Raw click log as CSV on stdout |
+| `hitch qr SLUG [-o FILE]` | QR code of the short URL as SVG |
 | `hitch export [--format json\|csv]` | Every link, paged transparently |
 | `hitch import FILE [--skip-existing]` | Bulk create from `.json` (list of objects) or `.csv` with columns `url[,slug,ttl_seconds]` |
 | `hitch check [--timeout S] [--workers N]` | HEAD/GET every target; prints dead ones |

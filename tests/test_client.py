@@ -60,6 +60,7 @@ class ClientTests(unittest.TestCase):
         self.api.create("https://example.com", slug="sdk-stat")
         self.assertEqual(self.api.stats("sdk-stat")["total_clicks"], 0)
         self.assertTrue(self.api.clicks_csv("sdk-stat").startswith("timestamp_utc"))
+        self.assertTrue(self.api.qr_svg("sdk-stat").startswith("<svg"))
         self.assertIn("hitchly_links", self.api.metrics())
         self.assertEqual(self.api.health()["status"], "ok")
 

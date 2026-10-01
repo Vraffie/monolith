@@ -85,6 +85,9 @@ Returns the updated link object.
 `text/csv` with columns `timestamp_utc,referrer,user_agent`, oldest first (max 10 000 rows).
 Cells beginning with `= + - @` are prefixed with `'` so spreadsheets don't evaluate them.
 
+### `GET /api/links/{slug}/qr.svg?scale=8` — QR code
+`image/svg+xml` QR code (error correction M, 4-module quiet zone) encoding the short URL. `scale` is pixels per module.
+
 ### `DELETE /api/links/{slug}` — delete
 Returns `204`. Click history is deleted with the link.
 

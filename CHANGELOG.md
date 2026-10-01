@@ -10,6 +10,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
   metrics `linkly_*` → `hitchly_*`.
 
 ### Added
+- QR codes: `GET /api/links/{slug}/qr.svg`, `hitch qr`, SDK `qr_svg`, UI button. In-repo stdlib encoder (`hitchly/qr.py`), verified against zxing-cpp for versions 1-40.
 - Web UI: edit a link's destination and expiry.
 - Rate limit on link creation (`LINKLY_CREATE_LIMIT`, default 60/min per client).
 

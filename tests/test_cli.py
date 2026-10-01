@@ -85,6 +85,14 @@ class CliTests(unittest.TestCase):
                 json.dump([{"url": "https://c.com", "slug": "imp-j"}], f)
             self.assertEqual(self.ctl("import", jpath)[0], 0)
 
+    def test_qr_to_stdout_and_file(self):
+        self.ctl("new", "https://example.com", "--slug", "cli-qr")
+        self.assertTrue(self.ctl("qr", "cli-qr")[1].startswith("<svg"))
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "q.svg")
+            self.assertEqual(self.ctl("qr", "cli-qr", "-o", path)[0], 0)
+            self.assertTrue(open(path).read().startswith("<svg"))
+
     def test_check_reports_dead_links(self):
         self.ctl("new", f"{self.base}/health", "--slug", "chk-ok")
         self.ctl("new", "http://127.0.0.1:1/", "--slug", "chk-dead")

@@ -41,5 +41,5 @@ Hitchly started as a server. It is now a small set of tools that all talk to the
 - **Alerting:** Prometheus scrapes `/metrics`; alert on `hitchly_links_expired` or a flat `hitchly_clicks_total`.
 
 ## Not (yet) in the ecosystem
-Web UI bulk actions, QR codes, webhooks on click, multiple API tokens/scopes,
+Web UI bulk actions, webhooks on click, multiple API tokens/scopes,
 SDKs for other languages (the API is small and documented — see [API.md](API.md)).

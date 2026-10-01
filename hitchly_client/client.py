@@ -97,6 +97,10 @@ class Hitchly:
         _, raw, _ = self._request("GET", f"/api/links/{urllib.parse.quote(slug)}/clicks.csv")
         return raw.decode()
 
+    def qr_svg(self, slug: str, scale: int = 8) -> str:
+        _, raw, _ = self._request("GET", f"/api/links/{urllib.parse.quote(slug)}/qr.svg?scale={scale}")
+        return raw.decode()
+
     def metrics(self) -> str:
         _, raw, _ = self._request("GET", "/metrics")
         return raw.decode()

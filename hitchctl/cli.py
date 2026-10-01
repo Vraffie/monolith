@@ -72,6 +72,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("clicks", help="dump a link's raw clicks as CSV"); s.add_argument("slug")
 
+    s = sub.add_parser("qr", help="write a link's QR code as SVG (stdout, or -o FILE)")
+    s.add_argument("slug"); s.add_argument("-o", "--output")
+
     s = sub.add_parser("export", help="export all links")
     s.add_argument("--format", choices=["json", "csv"], default="json")
 
@@ -160,6 +163,14 @@ def run(args, api: Hitchly, out, err, confirm=input) -> int:
             print(f"  referrer {r['referrer']} ({r['clicks']})", file=out)
     elif cmd == "clicks":
         out.write(api.clicks_csv(args.slug))
+    elif cmd == "qr":
+        svg = api.qr_svg(args.slug)
+        if args.output:
+            with open(args.output, "w", encoding="utf-8") as f:
+                f.write(svg)
+            print(f"wrote {args.output}", file=out)
+        else:
+            out.write(svg)
     elif cmd == "export":
         links = list(api.iter_links())
         if args.format == "json":
