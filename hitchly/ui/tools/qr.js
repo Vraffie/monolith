@@ -21,7 +21,7 @@ export default {
     const size = select([{ value: "4", label: "Small" }, { value: "8", label: "Medium" }, { value: "12", label: "Large" }]); size.value = "8";
     const preview = h("div", { class: "card", hidden: true });
     const err = h("div", { class: "err", role: "alert" });
-    let controls = {}, svg = "", matrix = null, text = "";
+    let controls = {}, svg = "", matrix = null, text = "", touched = false;  // no red errors until the user has typed something
 
     const render = () => {
       err.textContent = "";
@@ -41,18 +41,18 @@ export default {
             h("button", { onclick: () => download("qr.svg", svg, "image/svg+xml") }, "Download SVG"),
             h("button", { class: "ghost", onclick: () => { const a = h("a", { href: toPngDataUrl(matrix, { scale: Number(size.value) }), download: "qr.png" }); document.body.append(a); a.click(); a.remove(); } }, "Download PNG"),
             h("button", { class: "ghost", onclick: () => copyText(text) }, "Copy encoded text")));
-      } catch (e) { preview.hidden = true; err.textContent = e.message; }
+      } catch (e) { preview.hidden = true; err.textContent = touched ? e.message : ""; }
     };
 
     const build = () => {
-      formBox.replaceChildren(); controls = {};
+      formBox.replaceChildren(); controls = {}; touched = false;
       for (const [key, label, kind] of TYPES[type.value].fields) {
         let c;
         if (kind === "textarea") c = textarea();
         else if (kind === "checkbox") c = h("input", { type: "checkbox" });
         else if (Array.isArray(kind)) c = select(kind);
         else c = input({ type: kind || "text", autocomplete: kind === "password" ? "off" : "off" });
-        c.addEventListener("input", render); controls[key] = c;
+        c.addEventListener("input", () => { touched = true; render(); }); controls[key] = c;
         formBox.append(kind === "checkbox" ? h("label", { class: "full" }, c, " " + label) : field(label, c, kind === "textarea" ? "full" : ""));
       }
       render();

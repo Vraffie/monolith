@@ -5,7 +5,7 @@ export default {
   id: "color", title: "Color converter & contrast", group: "Format & convert", keywords: "hex rgb hsl wcag accessibility",
   blurb: "Convert HEX / RGB / HSL and check WCAG contrast between a text and a background colour.",
   mount(root) {
-    const fg = input({ value: "#1c1c1a" }), bg = input({ value: "#ffffff" });
+    const fg = input({ value: "#1c1c1a", "aria-label": "Text colour value" }), bg = input({ value: "#ffffff", "aria-label": "Background colour value" });
     const fgPick = h("input", { type: "color", value: "#1c1c1a", "aria-label": "Pick text colour" });
     const bgPick = h("input", { type: "color", value: "#ffffff", "aria-label": "Pick background colour" });
     const panel = h("div"), err = h("div", { class: "err", role: "alert" });

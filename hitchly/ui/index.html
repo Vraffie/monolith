@@ -11,13 +11,16 @@
 </head>
 <body>
 <header class="top">
+  <button class="ghost" id="menu" aria-expanded="false" aria-controls="nav" aria-label="Tools menu">☰ Tools</button>
   <a class="brand" href="#/">Hitchly</a>
-  <input id="toolSearch" type="search" placeholder="Find a tool…" aria-label="Find a tool" autocomplete="off">
   <span class="spacer"></span>
   <button class="ghost" id="auth"></button>
 </header>
 <div class="shell">
-  <nav id="nav" aria-label="Tools"></nav>
+  <nav id="nav" aria-label="Tools">
+    <input id="toolSearch" type="search" placeholder="Find a tool…" aria-label="Find a tool" autocomplete="off">
+    <div id="navList"></div>
+  </nav>
   <main id="main" tabindex="-1"></main>
 </div>
 <div id="toast" role="status" aria-live="polite"></div>

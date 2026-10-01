@@ -40,7 +40,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install --no-save playwright && npx playwright install --with-deps chromium
+      - run: npm install --no-save playwright axe-core && npx playwright install --with-deps chromium
       - name: Browser tests against a real server
         run: |
           python tests/e2e/site.py 8087 &
@@ -51,6 +51,7 @@ jobs:
           node tests/e2e/links.cjs
           SITE_URL=http://127.0.0.1:8087 node tests/e2e/server-tools.cjs
           node tests/e2e/admin.cjs
+          node tests/e2e/a11y.cjs
 
   docker:
     runs-on: ubuntu-latest

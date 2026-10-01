@@ -91,6 +91,16 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8080';
   ok('url cleaned', (await out(0)) === 'https://example.com/x?id=7#top', await out(0));
 
   await p.fill('#toolSearch','hash'); ok('tool search filters nav', (await p.$$('nav a:not([hidden])')).length === 1);
+  // mobile: the tool list is collapsed behind a menu button and opens/closes
+  const m = await (await b.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })).newPage();
+  await m.goto(BASE + '/#/base64'); await m.waitForSelector('main h1');
+  ok('mobile: tool list is collapsed by default', !(await m.isVisible('nav')));
+  await m.click('#menu'); ok('mobile: menu opens the tool list', await m.isVisible('nav') && (await m.getAttribute('#menu', 'aria-expanded')) === 'true');
+  await m.click('nav a[data-id=json]'); await m.waitForSelector('main h1:has-text("JSON formatter")');
+  ok('mobile: picking a tool closes the menu', !(await m.isVisible('nav')));
+  await m.goto(BASE + '/#/qr'); await m.waitForSelector('main h1');
+  ok('qr: no error is shown before the user types', (await m.innerText('main')).includes('Enter some text') === false);
+
   console.log(`\n${pass} passed, ${fail} failed`);
   // On a static host the server probe (GET health) legitimately 404s; nothing else may log an error.
   if (process.env.STATIC) for (let i = bad.length - 1; i >= 0; i--) if (/404/.test(bad[i])) bad.splice(i, 1);

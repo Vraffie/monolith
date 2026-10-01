@@ -59,18 +59,20 @@ function loginCard(onDone) {
 
 // ---- navigation ------------------------------------------------------------
 const nav = document.getElementById("nav");
+const navList = document.getElementById("navList");
+const menu = document.getElementById("menu");
 const main = document.getElementById("main");
 const search = document.getElementById("toolSearch");
 
 function buildNav() {
-  nav.replaceChildren();
+  navList.replaceChildren();
   for (const group of GROUPS) {
     const items = tools.filter(t => t.group === group);
     if (!items.length) continue;
-    nav.append(h("h2", {}, group));
+    navList.append(h("h2", {}, group));
     for (const t of items) {
-      nav.append(h("a", { href: "#/" + t.id, "data-id": t.id, "data-q": (t.title + " " + (t.keywords || "")).toLowerCase() },
-        t.title, t.needsAuth ? h("span", { class: "lock", title: "Needs your API token" }, " ·") : null));
+      navList.append(h("a", { href: "#/" + t.id, "data-id": t.id, "data-q": (t.title + " " + (t.keywords || "")).toLowerCase() },
+        t.title, t.needsAuth ? h("span", { class: "lock", title: "Needs your API token", "aria-label": "(needs sign-in)" }, " 🔒") : null));
     }
   }
 }
@@ -118,5 +120,6 @@ document.getElementById("auth").addEventListener("click", () => {
   main.replaceChildren(h("h1", {}, "Sign in"), loginCard(route));
 });
 search.addEventListener("input", filterNav);
-addEventListener("hashchange", route);
+menu.addEventListener("click", () => { const open = nav.classList.toggle("open"); menu.setAttribute("aria-expanded", String(open)); });
+addEventListener("hashchange", () => { nav.classList.remove("open"); menu.setAttribute("aria-expanded", "false"); route(); });
 buildNav();  // the first route() runs once the server probe above has settled, so there is no login flash on static hosts
