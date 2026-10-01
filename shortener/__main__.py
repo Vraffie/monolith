@@ -1,4 +1,4 @@
-"""Entry point: `python -m shortener [serve|purge]`."""
+"""Entry point: `python -m shortener [serve|purge|backup <file>]`."""
 
 from __future__ import annotations
 
@@ -18,8 +18,15 @@ def main(argv: list[str]) -> int:
     if command == "purge":
         print(f"removed {service.purge_expired()} expired link(s)")
         return 0
+    if command == "backup":
+        if len(argv) != 2:
+            print("usage: python -m shortener backup <destination-file>", file=sys.stderr)
+            return 2
+        service.storage.backup(argv[1])
+        print(f"backup written to {argv[1]}")
+        return 0
     if command != "serve":
-        print("usage: python -m shortener [serve|purge]", file=sys.stderr)
+        print("usage: python -m shortener [serve|purge|backup <file>]", file=sys.stderr)
         return 2
 
     server = create_server(service, config)

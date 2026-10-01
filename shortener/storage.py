@@ -132,6 +132,25 @@ class Storage:
             ).fetchall()
         return [(r["referrer"], r["n"]) for r in rows]
 
+    def totals(self, now: int) -> dict[str, int]:
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT (SELECT COUNT(*) FROM links), (SELECT COUNT(*) FROM clicks), "
+                "(SELECT COUNT(*) FROM links WHERE expires_at IS NOT NULL AND expires_at <= ?)", (now,)
+            ).fetchone()
+        return {"links": row[0], "clicks": row[1], "expired_links": row[2]}
+
+    def backup(self, dest: str) -> None:
+        """Consistent online copy using SQLite's backup API (safe while serving)."""
+        if self._shared:
+            raise RuntimeError("cannot back up an in-memory database")
+        target = sqlite3.connect(dest)
+        try:
+            with self._conn() as conn:
+                conn.backup(target)
+        finally:
+            target.close()
+
     def purge_expired(self, now: int) -> int:
         with self._conn() as conn:
             return conn.execute(

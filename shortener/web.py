@@ -162,6 +162,20 @@ def make_handler(service: LinkService, config: Config):
                 return self._send(200, html, "text/html; charset=utf-8", {"Content-Security-Policy": CSP})
             if path == "/health":
                 return self._json(200, {"status": "ok", "version": __version__})
+            if path == "/metrics":
+                if not self._require_auth():
+                    return
+                t = service.totals()
+                body = (
+                    "# HELP linkly_links Links currently stored.\n# TYPE linkly_links gauge\n"
+                    f"linkly_links {t['links']}\n"
+                    "# HELP linkly_links_expired Stored links past their expiry (purge to remove).\n"
+                    "# TYPE linkly_links_expired gauge\n"
+                    f"linkly_links_expired {t['expired_links']}\n"
+                    "# HELP linkly_clicks_total Recorded redirects.\n# TYPE linkly_clicks_total counter\n"
+                    f"linkly_clicks_total {t['clicks']}\n"
+                ).encode()
+                return self._send(200, body, "text/plain; version=0.0.4; charset=utf-8")
             if path == "/api/links":
                 if not self._require_auth():
                     return

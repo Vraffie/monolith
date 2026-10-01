@@ -97,5 +97,8 @@ class LinkService:
             "top_referrers": [{"referrer": r, "clicks": n} for r, n in self.storage.top_referrers(link.id)],
         }
 
+    def totals(self) -> dict[str, int]:
+        return self.storage.totals(self.clock())
+
     def purge_expired(self) -> int:
         return self.storage.purge_expired(self.clock())

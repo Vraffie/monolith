@@ -111,6 +111,16 @@ class ApiTests(unittest.TestCase):
         finally:
             type(self).now -= 31
 
+    def test_metrics(self):
+        self.request("POST", "/api/links", {"url": "https://a.com", "slug": "metric"})
+        self.request("GET", "/metric", token=None)
+        self.assertEqual(self.request("GET", "/metrics", token=None)[0], 401)
+        status, body, res = self.request("GET", "/metrics")
+        self.assertEqual(status, 200)
+        self.assertTrue(res.getheader("Content-Type").startswith("text/plain"))
+        for name in ("linkly_links ", "linkly_links_expired ", "linkly_clicks_total "):
+            self.assertIn(name, body)
+
     def test_patch(self):
         self.request("POST", "/api/links", {"url": "https://a.com", "slug": "patchme", "ttl_seconds": 99})
         status, link, _ = self.request("PATCH", "/api/links/patchme", {"url": "https://b.com", "ttl_seconds": None})

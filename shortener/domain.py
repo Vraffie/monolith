@@ -10,7 +10,7 @@ from urllib.parse import urlsplit
 
 ALPHABET = string.ascii_letters + string.digits
 SLUG_RE = re.compile(r"^[A-Za-z0-9_-]{3,32}$")
-RESERVED_SLUGS = frozenset({"api", "health", "static", "favicon.ico", "robots.txt"})
+RESERVED_SLUGS = frozenset({"api", "health", "static", "favicon.ico", "robots.txt", "metrics"})
 MAX_URL_LENGTH = 2048
 MAX_TTL_SECONDS = 10 * 365 * 24 * 3600
 
