@@ -4,6 +4,8 @@ from hitchly.domain import Conflict, NotFound, ValidationError
 from hitchly.service import DAY, LinkService
 from hitchly.storage import Storage
 
+BROWSER = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126.0 Safari/537.36"
+
 
 class ServiceTests(unittest.TestCase):
     def setUp(self):
@@ -26,9 +28,9 @@ class ServiceTests(unittest.TestCase):
 
     def test_resolve_records_clicks(self):
         link = self.svc.create("https://example.com", slug="abc")
-        self.assertEqual(self.svc.resolve("abc", "https://news.site/", "UA"), "https://example.com")
-        self.svc.resolve("abc", "https://news.site/")
-        self.svc.resolve("abc")
+        self.assertEqual(self.svc.resolve("abc", "https://news.site/", BROWSER), "https://example.com")
+        self.svc.resolve("abc", "https://news.site/", BROWSER)
+        self.svc.resolve("abc", user_agent=BROWSER)
         stats = self.svc.stats("abc")
         self.assertEqual(stats["total_clicks"], 3)
         self.assertEqual(stats["clicks_per_day"][0]["clicks"], 3)
@@ -37,9 +39,9 @@ class ServiceTests(unittest.TestCase):
 
     def test_expiry(self):
         self.svc.create("https://example.com", slug="temp", ttl_seconds=60)
-        self.assertIsNotNone(self.svc.resolve("temp"))
+        self.assertIsNotNone(self.svc.resolve("temp", user_agent=BROWSER))
         self.now += 60
-        self.assertIsNone(self.svc.resolve("temp"))
+        self.assertIsNone(self.svc.resolve("temp", user_agent=BROWSER))
         self.assertEqual(self.svc.get("temp").clicks, 1)  # expired hit not counted
         self.assertEqual(self.svc.purge_expired(), 1)
         with self.assertRaises(NotFound):
@@ -47,7 +49,7 @@ class ServiceTests(unittest.TestCase):
 
     def test_delete_removes_clicks_too(self):
         self.svc.create("https://example.com", slug="gone")
-        self.svc.resolve("gone")
+        self.svc.resolve("gone", user_agent=BROWSER)
         self.svc.delete("gone")
         with self.assertRaises(NotFound):
             self.svc.delete("gone")
@@ -63,9 +65,9 @@ class ServiceTests(unittest.TestCase):
 
     def test_stats_window(self):
         self.svc.create("https://example.com", slug="old")
-        self.svc.resolve("old")
+        self.svc.resolve("old", user_agent=BROWSER)
         self.now += 10 * DAY
-        self.svc.resolve("old")
+        self.svc.resolve("old", user_agent=BROWSER)
         self.assertEqual(len(self.svc.stats("old", days=7)["clicks_per_day"]), 1)
         self.assertEqual(len(self.svc.stats("old", days=30)["clicks_per_day"]), 2)
 
@@ -88,14 +90,29 @@ class ServiceTests(unittest.TestCase):
     def test_update_revives_expired_link(self):
         self.svc.create("https://a.com", slug="old", ttl_seconds=10)
         self.now += 20
-        self.assertIsNone(self.svc.resolve("old"))
+        self.assertIsNone(self.svc.resolve("old", user_agent=BROWSER))
         self.svc.update("old", {"ttl_seconds": None})
-        self.assertEqual(self.svc.resolve("old"), "https://a.com")
+        self.assertEqual(self.svc.resolve("old", user_agent=BROWSER), "https://a.com")
 
     def test_export_clicks(self):
         self.svc.create("https://a.com", slug="exp")
-        self.svc.resolve("exp", "https://r/", "UA")
-        self.assertEqual(self.svc.export_clicks("exp"), [(self.now, "https://r/", "UA")])
+        self.svc.resolve("exp", "https://r/", BROWSER)
+        self.assertEqual(self.svc.export_clicks("exp"), [(self.now, "https://r/", BROWSER, False)])
+
+    def test_bots_are_recorded_but_not_counted(self):
+        self.svc.create("https://example.com", slug="bots")
+        self.svc.resolve("bots", user_agent=BROWSER)
+        self.svc.resolve("bots", user_agent="Slackbot-LinkExpanding 1.0 (+https://api.slack.com/robots)")
+        self.svc.resolve("bots", user_agent=BROWSER, head=True)  # HEAD = scanner
+        self.svc.resolve("bots")  # no User-Agent
+        link = self.svc.get("bots")
+        self.assertEqual((link.clicks, link.bot_clicks), (1, 3))
+        stats = self.svc.stats("bots")
+        self.assertEqual((stats["total_clicks"], stats["bot_clicks"]), (1, 3))
+        self.assertEqual(stats["clicks_per_day"][0]["clicks"], 1)
+        self.assertEqual(self.svc.stats("bots", include_bots=True)["clicks_per_day"][0]["clicks"], 4)
+        self.assertEqual(self.svc.totals()["bot_clicks"], 3)
+        self.assertEqual([c[3] for c in self.svc.export_clicks("bots")], [False, True, True, True])
 
 
 if __name__ == "__main__":

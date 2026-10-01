@@ -66,7 +66,7 @@ class CliTests(unittest.TestCase):
         self.ctl("new", "https://example.com", "--slug", "cli-ls")
         self.assertIn("cli-ls", self.ctl("ls")[1])
         self.assertTrue(any(l["slug"] == "cli-ls" for l in json.loads(self.ctl("ls", "--json")[1])))
-        self.assertIn("0 total clicks", self.ctl("stats", "cli-ls")[1])
+        self.assertIn("0 visits (+0 bot)", self.ctl("stats", "cli-ls")[1])
         self.assertTrue(self.ctl("clicks", "cli-ls")[1].startswith("timestamp_utc"))
         self.assertIn("cli-ls", self.ctl("export", "--format", "csv")[1])
         self.assertTrue(any(l["slug"] == "cli-ls" for l in json.loads(self.ctl("export")[1])))

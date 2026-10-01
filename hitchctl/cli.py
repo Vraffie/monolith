@@ -69,6 +69,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("stats", help="click analytics")
     s.add_argument("slug"); s.add_argument("--days", type=int, default=7)
+    s.add_argument("--include-bots", action="store_true", help="count crawlers/previews in the per-day bars")
 
     s = sub.add_parser("clicks", help="dump a link's raw clicks as CSV"); s.add_argument("slug")
 
@@ -155,8 +156,8 @@ def run(args, api: Hitchly, out, err, confirm=input) -> int:
         api.delete(args.slug)
         print(f"deleted {args.slug}", file=out)
     elif cmd == "stats":
-        s = api.stats(args.slug, args.days)
-        print(f"{s['slug']}: {s['total_clicks']} total clicks", file=out)
+        s = api.stats(args.slug, args.days, args.include_bots)
+        print(f"{s['slug']}: {s['total_clicks']} visits (+{s['bot_clicks']} bot)", file=out)
         for d in s["clicks_per_day"]:
             print(f"  {d['day']}  {'#' * min(d['clicks'], 40)} {d['clicks']}", file=out)
         for r in s["top_referrers"]:

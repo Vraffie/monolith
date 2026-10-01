@@ -34,7 +34,8 @@ class Link:
     url: str
     created_at: int
     expires_at: int | None
-    clicks: int = 0
+    clicks: int = 0  # human visits (bots excluded)
+    bot_clicks: int = 0
 
     def is_expired(self, now: int) -> bool:
         return self.expires_at is not None and now >= self.expires_at

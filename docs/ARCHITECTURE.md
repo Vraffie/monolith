@@ -26,7 +26,8 @@ The SDK (`hitchly_client`) and CLI (`hitch`) sit outside this layering and consu
 
 ## Data model
 `links(id, slug UNIQUE, url, created_at, expires_at)` and
-`clicks(id, link_id → links ON DELETE CASCADE, ts, referrer, user_agent)`.
+`clicks(id, link_id → links ON DELETE CASCADE, ts, referrer, user_agent, is_bot)`.
+The schema is versioned with `PRAGMA user_version` and evolved by the append-only `MIGRATIONS` list in `storage.py` (never edit a released step).
 
 ## Security
 - Bearer token compared with `hmac.compare_digest`; random token generated if unset.

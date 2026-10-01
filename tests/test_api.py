@@ -11,6 +11,7 @@ from hitchly.storage import Storage
 from hitchly.web import create_server
 
 TOKEN = "test-token"
+BROWSER = "Mozilla/5.0 (X11; Linux x86_64) Chrome/126.0 Safari/537.36"
 
 
 class NoRedirect(http.client.HTTPConnection):
@@ -72,7 +73,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(link["short_url"], f"http://127.0.0.1:{self.port}/life")
         self.assertEqual(res.getheader("Location"), "/api/links/life")
 
-        status, _, res = self.request("GET", "/life", token=None, headers={"Referer": "https://ref.example/"})
+        status, _, res = self.request("GET", "/life", token=None, headers={"Referer": "https://ref.example/", "User-Agent": BROWSER})
         self.assertEqual(status, 302)
         self.assertEqual(res.getheader("Location"), "https://example.com/x")
 
@@ -121,6 +122,16 @@ class ApiTests(unittest.TestCase):
         for name in ("hitchly_links ", "hitchly_links_expired ", "hitchly_clicks_total "):
             self.assertIn(name, body)
 
+    def test_bot_visits_redirect_but_are_counted_separately(self):
+        self.request("POST", "/api/links", {"url": "https://a.com", "slug": "botty"})
+        self.assertEqual(self.request("GET", "/botty", token=None, headers={"User-Agent": "curl/8.5"})[0], 302)
+        self.assertEqual(self.request("HEAD", "/botty", token=None, headers={"User-Agent": BROWSER})[0], 302)
+        self.request("GET", "/botty", token=None, headers={"User-Agent": BROWSER})
+        _, link, _ = self.request("GET", "/api/links/botty")
+        self.assertEqual((link["clicks"], link["bot_clicks"]), (1, 2))
+        _, stats, _ = self.request("GET", "/api/links/botty/stats?include_bots=1")
+        self.assertEqual(stats["clicks_per_day"][0]["clicks"], 3)
+
     def test_qr_svg(self):
         self.request("POST", "/api/links", {"url": "https://a.com", "slug": "qrme"})
         status, body, res = self.request("GET", "/api/links/qrme/qr.svg")
@@ -139,12 +150,12 @@ class ApiTests(unittest.TestCase):
 
     def test_clicks_csv_neutralises_formulas(self):
         self.request("POST", "/api/links", {"url": "https://a.com", "slug": "csvtest"})
-        self.request("GET", "/csvtest", token=None, headers={"Referer": "=HYPERLINK(\"http://evil\")"})
+        self.request("GET", "/csvtest", token=None, headers={"Referer": "=HYPERLINK(\"http://evil\")", "User-Agent": BROWSER})
         status, body, res = self.request("GET", "/api/links/csvtest/clicks.csv")
         self.assertEqual(status, 200)
         self.assertEqual(res.getheader("Content-Type"), "text/csv; charset=utf-8")
         lines = body.splitlines()
-        self.assertEqual(lines[0], "timestamp_utc,referrer,user_agent")
+        self.assertEqual(lines[0], "timestamp_utc,referrer,user_agent,bot")
         self.assertIn("\"'=HYPERLINK", lines[1])  # leading quote defuses the formula
         self.assertEqual(self.request("GET", "/api/links/csvtest/clicks.csv", token=None)[0], 401)
 

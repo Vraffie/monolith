@@ -9,6 +9,7 @@ file, **zero dependencies** (Python 3.10+ standard library only).
 - Optional expiry (`ttl_seconds`) — expired links answer `410 Gone`
 - Click analytics: total, clicks per day, top referrers
 - JSON API protected by a bearer token, plus a small web UI at `/`
+- Bot-filtered analytics (crawlers and link previews don't inflate clicks)
 - QR code per link (SVG, no dependencies)
 - Edit a link's target or expiry; export raw clicks as CSV
 - `purge` and online `backup` commands (cron-friendly), Prometheus `/metrics`

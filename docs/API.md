@@ -32,10 +32,18 @@ Every error is `{"error": "<message>"}`.
   "created_at": 1790857245,
   "expires_at": null,
   "expired": false,
-  "clicks": 3
+  "clicks": 3,
+  "bot_clicks": 1
 }
 ```
-Timestamps are Unix seconds (UTC). `expires_at` is `null` for links that never expire.
+`clicks` counts human visits; `bot_clicks` counts crawlers, link-preview fetchers, scripts, requests without a User-Agent, and every `HEAD`
+(see [Bot filtering](#bot-filtering)). Timestamps are Unix seconds (UTC). `expires_at` is `null` for links that never expire.
+
+## Bot filtering
+Every redirect is recorded, but classified at record time by a User-Agent heuristic (`hitchly/bots.py`): empty User-Agents, crawlers
+(Googlebot…), link-preview fetchers (Slack, WhatsApp, Facebook, Telegram, Discord…), HTTP libraries (curl, python-requests, Go…) and
+headless browsers count as bots. All `HEAD` requests count as bots. Bots are still redirected normally. This is a heuristic: it reduces
+accidental inflation, it does not stop someone who deliberately sends a browser User-Agent. Existing clicks are classified by a migration.
 
 ## Endpoints
 
@@ -73,7 +81,8 @@ Returns the link object, or `404`.
   "top_referrers": [{ "referrer": "https://news.example/", "clicks": 3 }]
 }
 ```
-`days` is the look-back window for `clicks_per_day` (default 7). `total_clicks` is all-time.
+`days` is the look-back window for `clicks_per_day` (default 7). `total_clicks` is all-time human visits; `bot_clicks` is all-time bot visits.
+`clicks_per_day` and `top_referrers` exclude bots unless you pass `include_bots=1` (`includes_bots` in the response says which).
 Days with no clicks are omitted. Up to 5 referrers are returned.
 
 ### `PATCH /api/links/{slug}` — edit
@@ -82,7 +91,7 @@ Body may contain `url` and/or `ttl_seconds`; anything else (including `slug`) is
 Returns the updated link object.
 
 ### `GET /api/links/{slug}/clicks.csv` — raw click log
-`text/csv` with columns `timestamp_utc,referrer,user_agent`, oldest first (max 10 000 rows).
+`text/csv` with columns `timestamp_utc,referrer,user_agent,bot` (`bot` is 0/1; bots are included so you can analyse them), oldest first (max 10 000 rows).
 Cells beginning with `= + - @` are prefixed with `'` so spreadsheets don't evaluate them.
 
 ### `GET /api/links/{slug}/qr.svg?scale=8` — QR code

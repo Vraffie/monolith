@@ -4,12 +4,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
 
 ## [Unreleased]
 ### Changed
+- `clicks` / `total_clicks` / `hitchly_clicks_total` now exclude bots (previously every redirect counted).
 - **Renamed the product from Linkly to Hitchly** (a hitch is a knot that ties things together). Pre-release, so there is no compatibility layer:
   package `shortener` → `hitchly`, `linkly_client` → `hitchly_client`, `linklyctl` → `hitchctl` (command `hitch`),
   server command `linkly` → `hitchly`, env vars `LINKLY_*` → `HITCHLY_*`, default DB `linkly.db` → `hitchly.db`,
   metrics `linkly_*` → `hitchly_*`.
 
 ### Added
+- Bot filtering: clicks are classified by User-Agent; `clicks` counts humans, `bot_clicks` separately; `include_bots` on stats; `bot` column in CSV; `hitchly_bot_clicks_total` metric. Migration backfills history.
+- Versioned schema migrations (`PRAGMA user_version`); old 1.x databases upgrade in place.
 - QR codes: `GET /api/links/{slug}/qr.svg`, `hitch qr`, SDK `qr_svg`, UI button. In-repo stdlib encoder (`hitchly/qr.py`), verified against zxing-cpp for versions 1-40.
 - Web UI: edit a link's destination and expiry.
 - Rate limit on link creation (`LINKLY_CREATE_LIMIT`, default 60/min per client).

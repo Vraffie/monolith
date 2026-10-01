@@ -90,8 +90,9 @@ class Hitchly:
     def delete(self, slug: str) -> None:
         self._request("DELETE", f"/api/links/{urllib.parse.quote(slug)}")
 
-    def stats(self, slug: str, days: int = 7) -> dict:
-        return self._json("GET", f"/api/links/{urllib.parse.quote(slug)}/stats?days={days}")
+    def stats(self, slug: str, days: int = 7, include_bots: bool = False) -> dict:
+        query = f"days={days}" + ("&include_bots=1" if include_bots else "")
+        return self._json("GET", f"/api/links/{urllib.parse.quote(slug)}/stats?{query}")
 
     def clicks_csv(self, slug: str) -> str:
         _, raw, _ = self._request("GET", f"/api/links/{urllib.parse.quote(slug)}/clicks.csv")

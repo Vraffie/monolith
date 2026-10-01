@@ -15,7 +15,7 @@ export HITCHLY_TOKEN=...                    # required (or --token)
 | `hitch get SLUG` | Show one link as JSON |
 | `hitch edit SLUG [--target URL] [--ttl 7d \| --no-expiry]` | Change destination and/or expiry |
 | `hitch rm SLUG [-y]` | Delete (asks for confirmation unless `-y`) |
-| `hitch stats SLUG [--days N]` | Totals, per-day bars, top referrers |
+| `hitch stats SLUG [--days N] [--include-bots]` | Human visits (+bot count), per-day bars, top referrers |
 | `hitch clicks SLUG` | Raw click log as CSV on stdout |
 | `hitch qr SLUG [-o FILE]` | QR code of the short URL as SVG |
 | `hitch export [--format json\|csv]` | Every link, paged transparently |

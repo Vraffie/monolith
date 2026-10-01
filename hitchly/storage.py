@@ -6,6 +6,7 @@ import sqlite3
 from contextlib import contextmanager
 from typing import Iterator
 
+from .bots import is_bot
 from .domain import Conflict, Link
 
 # Ordered, append-only. Entry i upgrades a database from user_version i to i+1.
@@ -29,17 +30,24 @@ MIGRATIONS = [
     );
     CREATE INDEX IF NOT EXISTS idx_clicks_link_ts ON clicks(link_id, ts);
     """,
+    # 1: bot classification (history is backfilled from the stored User-Agent)
+    "ALTER TABLE clicks ADD COLUMN is_bot INTEGER NOT NULL DEFAULT 0;",
+    lambda conn: conn.executemany(
+        "UPDATE clicks SET is_bot = 1 WHERE id = ?",
+        [(r[0],) for r in conn.execute("SELECT id, user_agent FROM clicks").fetchall() if is_bot(r[1])],
+    ),
 ]
 
 _LINK_SELECT = """
 SELECT l.id, l.slug, l.url, l.created_at, l.expires_at,
-       (SELECT COUNT(*) FROM clicks c WHERE c.link_id = l.id) AS clicks
+       (SELECT COUNT(*) FROM clicks c WHERE c.link_id = l.id AND c.is_bot = 0) AS clicks,
+       (SELECT COUNT(*) FROM clicks c WHERE c.link_id = l.id AND c.is_bot = 1) AS bot_clicks
 FROM links l
 """
 
 
 def _row_to_link(row: sqlite3.Row) -> Link:
-    return Link(row["id"], row["slug"], row["url"], row["created_at"], row["expires_at"], row["clicks"])
+    return Link(row["id"], row["slug"], row["url"], row["created_at"], row["expires_at"], row["clicks"], row["bot_clicks"])
 
 
 class Storage:
@@ -57,9 +65,18 @@ class Storage:
                 raise RuntimeError(
                     f"database schema v{version} is newer than this program (v{len(MIGRATIONS)}); upgrade Hitchly"
                 )
-            for target, sql in enumerate(MIGRATIONS[version:], start=version + 1):
-                # executescript issues its own COMMIT first; the BEGIN..COMMIT makes each step atomic
-                conn.executescript(f"BEGIN IMMEDIATE;\n{sql}\nPRAGMA user_version = {target};\nCOMMIT;")
+            for target, step in enumerate(MIGRATIONS[version:], start=version + 1):
+                if callable(step):  # Python data migration, atomic via an explicit transaction
+                    conn.execute("BEGIN IMMEDIATE")
+                    try:
+                        step(conn)
+                        conn.execute(f"PRAGMA user_version = {target}")
+                        conn.execute("COMMIT")
+                    except BaseException:
+                        conn.execute("ROLLBACK")
+                        raise
+                else:  # executescript issues its own COMMIT first; BEGIN..COMMIT makes the step atomic
+                    conn.executescript(f"BEGIN IMMEDIATE;\n{step}\nPRAGMA user_version = {target};\nCOMMIT;")
         finally:
             if not self._shared:
                 conn.close()
@@ -108,13 +125,13 @@ class Storage:
         with self._conn() as conn:
             return conn.execute(f"UPDATE links SET {', '.join(sets)} WHERE slug = ?", (*args, slug)).rowcount > 0
 
-    def list_clicks(self, link_id: int, limit: int = 10000) -> list[tuple[int, str | None, str | None]]:
+    def list_clicks(self, link_id: int, limit: int = 10000) -> list[tuple[int, str | None, str | None, bool]]:
         with self._conn() as conn:
             rows = conn.execute(
-                "SELECT ts, referrer, user_agent FROM clicks WHERE link_id = ? ORDER BY ts, id LIMIT ?",
+                "SELECT ts, referrer, user_agent, is_bot FROM clicks WHERE link_id = ? ORDER BY ts, id LIMIT ?",
                 (link_id, limit),
             ).fetchall()
-        return [(r["ts"], r["referrer"], r["user_agent"]) for r in rows]
+        return [(r["ts"], r["referrer"], r["user_agent"], bool(r["is_bot"])) for r in rows]
 
     def list_links(self, limit: int = 50, offset: int = 0) -> list[Link]:
         with self._conn() as conn:
@@ -131,38 +148,40 @@ class Storage:
         with self._conn() as conn:
             return conn.execute("DELETE FROM links WHERE slug = ?", (slug,)).rowcount > 0
 
-    def record_click(self, link_id: int, ts: int, referrer: str | None, user_agent: str | None) -> None:
+    def record_click(self, link_id: int, ts: int, referrer: str | None, user_agent: str | None,
+                     bot: bool = False) -> None:
         with self._conn() as conn:
             conn.execute(
-                "INSERT INTO clicks (link_id, ts, referrer, user_agent) VALUES (?, ?, ?, ?)",
-                (link_id, ts, (referrer or "")[:512] or None, (user_agent or "")[:256] or None),
+                "INSERT INTO clicks (link_id, ts, referrer, user_agent, is_bot) VALUES (?, ?, ?, ?, ?)",
+                (link_id, ts, (referrer or "")[:512] or None, (user_agent or "")[:256] or None, int(bot)),
             )
 
-    def clicks_per_day(self, link_id: int, since: int) -> list[tuple[str, int]]:
+    def clicks_per_day(self, link_id: int, since: int, include_bots: bool = False) -> list[tuple[str, int]]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT date(ts, 'unixepoch') AS day, COUNT(*) AS n FROM clicks "
-                "WHERE link_id = ? AND ts >= ? GROUP BY day ORDER BY day",
-                (link_id, since),
+                "WHERE link_id = ? AND ts >= ? AND (? OR is_bot = 0) GROUP BY day ORDER BY day",
+                (link_id, since, int(include_bots)),
             ).fetchall()
         return [(r["day"], r["n"]) for r in rows]
 
-    def top_referrers(self, link_id: int, limit: int = 5) -> list[tuple[str, int]]:
+    def top_referrers(self, link_id: int, limit: int = 5, include_bots: bool = False) -> list[tuple[str, int]]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT referrer, COUNT(*) AS n FROM clicks WHERE link_id = ? AND referrer IS NOT NULL "
-                "GROUP BY referrer ORDER BY n DESC, referrer LIMIT ?",
-                (link_id, limit),
+                "AND (? OR is_bot = 0) GROUP BY referrer ORDER BY n DESC, referrer LIMIT ?",
+                (link_id, int(include_bots), limit),
             ).fetchall()
         return [(r["referrer"], r["n"]) for r in rows]
 
     def totals(self, now: int) -> dict[str, int]:
         with self._conn() as conn:
             row = conn.execute(
-                "SELECT (SELECT COUNT(*) FROM links), (SELECT COUNT(*) FROM clicks), "
-                "(SELECT COUNT(*) FROM links WHERE expires_at IS NOT NULL AND expires_at <= ?)", (now,)
+                "SELECT (SELECT COUNT(*) FROM links), (SELECT COUNT(*) FROM clicks WHERE is_bot = 0), "
+                "(SELECT COUNT(*) FROM links WHERE expires_at IS NOT NULL AND expires_at <= ?), "
+                "(SELECT COUNT(*) FROM clicks WHERE is_bot = 1)", (now,)
             ).fetchone()
-        return {"links": row[0], "clicks": row[1], "expired_links": row[2]}
+        return {"links": row[0], "clicks": row[1], "expired_links": row[2], "bot_clicks": row[3]}
 
     def backup(self, dest: str) -> None:
         """Consistent online copy using SQLite's backup API (safe while serving)."""

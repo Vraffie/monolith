@@ -6,13 +6,15 @@ import unittest
 from hitchly.service import LinkService
 from hitchly.storage import Storage
 
+BROWSER = "Mozilla/5.0 Chrome/126.0 Safari/537.36"
+
 
 class OpsTests(unittest.TestCase):
     def test_backup_is_a_usable_copy(self):
         with tempfile.TemporaryDirectory() as d:
             svc = LinkService(Storage(os.path.join(d, "live.db")))
             svc.create("https://a.com", slug="keep")
-            svc.resolve("keep")
+            svc.resolve("keep", user_agent=BROWSER)
             dest = os.path.join(d, "backup.db")
             svc.storage.backup(dest)
             restored = LinkService(Storage(dest))
@@ -24,9 +26,9 @@ class OpsTests(unittest.TestCase):
         svc = LinkService(Storage(":memory:"), clock=lambda: now[0])
         svc.create("https://a.com", slug="aaa", ttl_seconds=10)
         svc.create("https://b.com", slug="bbb")
-        svc.resolve("aaa")
+        svc.resolve("aaa", user_agent=BROWSER)
         now[0] += 10
-        self.assertEqual(svc.totals(), {"links": 2, "clicks": 1, "expired_links": 1})
+        self.assertEqual(svc.totals(), {"links": 2, "clicks": 1, "expired_links": 1, "bot_clicks": 0})
 
 
 if __name__ == "__main__":

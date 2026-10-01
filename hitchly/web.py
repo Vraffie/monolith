@@ -103,6 +103,7 @@ def make_handler(service: LinkService, config: Config):
                 "expires_at": link.expires_at,
                 "expired": link.is_expired(service.clock()),
                 "clicks": link.clicks,
+                "bot_clicks": link.bot_clicks,
             }
 
         def _dispatch(self, fn):
@@ -174,8 +175,11 @@ def make_handler(service: LinkService, config: Config):
                     "# HELP hitchly_links_expired Stored links past their expiry (purge to remove).\n"
                     "# TYPE hitchly_links_expired gauge\n"
                     f"hitchly_links_expired {t['expired_links']}\n"
-                    "# HELP hitchly_clicks_total Recorded redirects.\n# TYPE hitchly_clicks_total counter\n"
+                    "# HELP hitchly_clicks_total Human redirects (bots excluded).\n# TYPE hitchly_clicks_total counter\n"
                     f"hitchly_clicks_total {t['clicks']}\n"
+                    "# HELP hitchly_bot_clicks_total Redirects classified as bots.\n"
+                    "# TYPE hitchly_bot_clicks_total counter\n"
+                    f"hitchly_bot_clicks_total {t['bot_clicks']}\n"
                 ).encode()
                 return self._send(200, body, "text/plain; version=0.0.4; charset=utf-8")
             if path == "/api/links":
@@ -198,16 +202,17 @@ def make_handler(service: LinkService, config: Config):
                 slug = m.group(1)
                 out = io.StringIO()
                 w = csv.writer(out)
-                w.writerow(["timestamp_utc", "referrer", "user_agent"])
-                for ts, ref, ua in service.export_clicks(slug):
+                w.writerow(["timestamp_utc", "referrer", "user_agent", "bot"])
+                for ts, ref, ua, bot in service.export_clicks(slug):
                     iso = datetime.fromtimestamp(ts, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-                    w.writerow([iso, _csv_safe(ref), _csv_safe(ua)])
+                    w.writerow([iso, _csv_safe(ref), _csv_safe(ua), int(bot)])
                 return self._send(200, out.getvalue().encode(), "text/csv; charset=utf-8",
                                   {"Content-Disposition": f'attachment; filename="{slug}-clicks.csv"'})
             if m := API_STATS.match(path):
                 if not self._require_auth():
                     return
-                return self._json(200, service.stats(m.group(1), _int_param(qs, "days", 7)))
+                return self._json(200, service.stats(m.group(1), _int_param(qs, "days", 7),
+                                                     include_bots=qs.get("include_bots", ["0"])[0] in ("1", "true")))
             if m := API_LINK.match(path):
                 if not self._require_auth():
                     return
@@ -215,7 +220,8 @@ def make_handler(service: LinkService, config: Config):
             if path.startswith("/api/"):
                 return self._error(404, "not found")
             if m := SLUG_PATH.match(path):
-                target = service.resolve(m.group(1), self.headers.get("Referer"), self.headers.get("User-Agent"))
+                target = service.resolve(m.group(1), self.headers.get("Referer"), self.headers.get("User-Agent"),
+                                         head=self.command == "HEAD")
                 if target is None:
                     return self._send(410, b"This link has expired.\n", "text/plain; charset=utf-8")
                 return self._send(302, b"", headers={"Location": target, "Cache-Control": "no-store"})

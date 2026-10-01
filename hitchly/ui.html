@@ -79,7 +79,7 @@ async function showStats(link, box) {
   if (box.childNodes.length) { box.replaceChildren(); return; }
   const s = await api(`/api/links/${link.slug}/stats?days=7`);
   const max = Math.max(1, ...s.clicks_per_day.map(d => d.clicks));
-  box.append(el("div", {}, `${s.total_clicks} total clicks. Last 7 days:`));
+  box.append(el("div", {}, `${s.total_clicks} visits` + (s.bot_clicks ? ` (+${s.bot_clicks} bot, excluded)` : "") + ". Last 7 days:"));
   if (!s.clicks_per_day.length) box.append(el("div", { className: "meta" }, "No clicks in the last 7 days."));
   for (const d of s.clicks_per_day) {
     const bar = el("span", { className: "bar" }); bar.style.width = (d.clicks / max * 120 + 4) + "px";
@@ -123,7 +123,7 @@ async function loadLinks() {
     list.append(el("div", { className: "link" },
       el("div", { className: "row" }, el("a", { className: "short", href: l.short_url, target: "_blank", rel: "noopener", textContent: l.short_url }), el("div", {}, copy, " ", st, " ", qrBtn, " ", edit, " ", del)),
       el("div", { className: "target", textContent: l.url }),
-      el("div", { className: "meta", textContent: `${l.clicks} clicks · created ${fmt(l.created_at)}` + (l.expires_at ? (l.expired ? " · EXPIRED" : ` · expires ${fmt(l.expires_at)}`) : "") }),
+      el("div", { className: "meta", textContent: `${l.clicks} clicks` + (l.bot_clicks ? ` (+${l.bot_clicks} bot)` : "") + ` · created ${fmt(l.created_at)}` + (l.expires_at ? (l.expired ? " · EXPIRED" : ` · expires ${fmt(l.expires_at)}`) : "") }),
       stats, qrBox));
   }
 }

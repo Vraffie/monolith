@@ -15,6 +15,7 @@ from .domain import (
     validate_ttl,
     validate_url,
 )
+from .bots import is_bot
 from .storage import Storage
 
 DAY = 86400
@@ -58,7 +59,7 @@ class LinkService:
         self.storage.update_link(slug, url, self.clock() + ttl if ttl else None, set_expiry)
         return self.get(slug)
 
-    def export_clicks(self, slug: str) -> list[tuple[int, str | None, str | None]]:
+    def export_clicks(self, slug: str) -> list[tuple[int, str | None, str | None, bool]]:
         return self.storage.list_clicks(self.get(slug).id)
 
     def get(self, slug: str) -> Link:
@@ -75,7 +76,8 @@ class LinkService:
         if not self.storage.delete_link(slug):
             raise NotFound(slug)
 
-    def resolve(self, slug: str, referrer: str | None = None, user_agent: str | None = None) -> str | None:
+    def resolve(self, slug: str, referrer: str | None = None, user_agent: str | None = None,
+                head: bool = False) -> str | None:
         """Return the target URL and record the click.
 
         Raises NotFound for unknown slugs; returns None if the link has expired.
@@ -84,17 +86,22 @@ class LinkService:
         now = self.clock()
         if link.is_expired(now):
             return None
-        self.storage.record_click(link.id, now, referrer, user_agent)
+        # HEAD is what scanners and preview fetchers send; a person's browser sends GET.
+        self.storage.record_click(link.id, now, referrer, user_agent, bot=head or is_bot(user_agent))
         return link.url
 
-    def stats(self, slug: str, days: int = 7) -> dict:
+    def stats(self, slug: str, days: int = 7, include_bots: bool = False) -> dict:
         link = self.get(slug)
         since = self.clock() - days * DAY
         return {
             "slug": link.slug,
             "total_clicks": link.clicks,
-            "clicks_per_day": [{"day": d, "clicks": n} for d, n in self.storage.clicks_per_day(link.id, since)],
-            "top_referrers": [{"referrer": r, "clicks": n} for r, n in self.storage.top_referrers(link.id)],
+            "bot_clicks": link.bot_clicks,
+            "includes_bots": include_bots,
+            "clicks_per_day": [{"day": d, "clicks": n}
+                               for d, n in self.storage.clicks_per_day(link.id, since, include_bots)],
+            "top_referrers": [{"referrer": r, "clicks": n}
+                              for r, n in self.storage.top_referrers(link.id, include_bots=include_bots)],
         }
 
     def totals(self) -> dict[str, int]:
