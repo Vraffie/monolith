@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Hitchly</title>
+<link rel="icon" href="/ui/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/ui/app.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="#/links">Hitchly</a>
+  <input id="toolSearch" type="search" placeholder="Find a tool…" aria-label="Find a tool" autocomplete="off">
+  <span class="spacer"></span>
+  <button class="ghost" id="auth"></button>
+</header>
+<div class="shell">
+  <nav id="nav" aria-label="Tools"></nav>
+  <main id="main" tabindex="-1"></main>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+<noscript><p class="noscript">Hitchly's tools need JavaScript.</p></noscript>
+<script type="module" src="/ui/app.js"></script>
+</body>
+</html>

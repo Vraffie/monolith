@@ -18,4 +18,4 @@ hitch = "hitchctl.cli:main_cli"
 packages = ["hitchly", "hitchly_client", "hitchctl"]
 
 [tool.setuptools.package-data]
-hitchly = ["ui.html"]
+hitchly = ["ui/*", "ui/*/*"]

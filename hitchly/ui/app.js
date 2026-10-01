@@ -1,0 +1,108 @@
+import { h, toast } from "./dom.js";
+import { tools, GROUPS } from "./tools/index.js";
+
+const KEY = "hitchly_token";
+const store = {
+  get() { try { return localStorage.getItem(KEY) || ""; } catch { return ""; } },
+  set(v) { try { v ? localStorage.setItem(KEY, v) : localStorage.removeItem(KEY); } catch { /* private mode */ } },
+};
+let token = store.get();
+let prefill = "";
+
+export const ctx = {
+  origin: location.origin,
+  get signedIn() { return !!token; },
+  /** Authenticated JSON call. Throws Error(message) on API errors; 401 signs out. */
+  async api(path, opts = {}) {
+    const headers = { Authorization: "Bearer " + token, ...(opts.body ? { "Content-Type": "application/json" } : {}), ...opts.headers };
+    const res = await fetch(path, { ...opts, headers });
+    if (res.status === 401) { signOut(); throw new Error("Invalid or expired token"); }
+    if (res.status === 429) throw new Error("Too many requests, try again shortly");
+    if (res.status === 204) return null;
+    const type = res.headers.get("Content-Type") || "";
+    const body = type.includes("json") ? await res.json() : await res.text();
+    if (!res.ok) throw new Error((body && body.error) || res.statusText);
+    return body;
+  },
+  takePrefill() { const v = prefill; prefill = ""; return v; },
+  toast,
+};
+
+function signOut() { token = ""; store.set(""); route(); }
+
+function loginCard(onDone) {
+  const tokenInput = h("input", { id: "tok", type: "password", autocomplete: "current-password", required: true });
+  const err = h("div", { class: "err", role: "alert" });
+  const form = h("form", {
+    class: "card",
+    onsubmit: async e => {
+      e.preventDefault();
+      err.textContent = "";
+      token = tokenInput.value.trim();
+      try { await ctx.api("/api/links?limit=1"); store.set(token); onDone(); }
+      catch (ex) { token = ""; err.textContent = ex.message; }
+    },
+  }, h("p", { class: "muted" }, "This tool talks to your Hitchly server. Enter the API token (HITCHLY_TOKEN)."),
+  h("label", { for: "tok" }, "API token"), tokenInput, err, h("button", {}, "Sign in"));
+  return form;
+}
+
+// ---- navigation ------------------------------------------------------------
+const nav = document.getElementById("nav");
+const main = document.getElementById("main");
+const search = document.getElementById("toolSearch");
+
+function buildNav() {
+  nav.replaceChildren();
+  for (const group of GROUPS) {
+    const items = tools.filter(t => t.group === group);
+    if (!items.length) continue;
+    nav.append(h("h2", {}, group));
+    for (const t of items) {
+      nav.append(h("a", { href: "#/" + t.id, "data-id": t.id, "data-q": (t.title + " " + (t.keywords || "")).toLowerCase() },
+        t.title, t.needsAuth ? h("span", { class: "lock", title: "Needs your API token" }, " ·") : null));
+    }
+  }
+}
+
+function filterNav() {
+  const q = search.value.trim().toLowerCase();
+  for (const a of nav.querySelectorAll("a")) a.hidden = !!q && !a.dataset.q.includes(q);
+  for (const h2 of nav.querySelectorAll("h2")) {
+    let el = h2.nextElementSibling, any = false;
+    while (el && el.tagName === "A") { any ||= !el.hidden; el = el.nextElementSibling; }
+    h2.hidden = !any;
+  }
+}
+
+function currentId() {
+  const hash = location.hash;
+  const m = hash.match(/^#new=(.+)$/);
+  if (m) { try { prefill = decodeURIComponent(m[1]); } catch { /* ignore malformed */ } history.replaceState(null, "", "#/links"); return "links"; }
+  return (hash.match(/^#\/([a-z0-9-]+)/) || [])[1] || "links";
+}
+
+function route() {
+  const id = currentId();
+  const tool = tools.find(t => t.id === id) || tools[0];
+  for (const a of nav.querySelectorAll("a")) {
+    if (a.dataset.id === tool.id) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+  }
+  document.title = tool.title + " · Hitchly";
+  document.getElementById("auth").textContent = token ? "Sign out" : "Sign in";
+  main.replaceChildren(h("h1", {}, tool.title), h("p", { class: "blurb" }, tool.blurb));
+  const body = h("div");
+  main.append(body);
+  if (tool.needsAuth && !token) { body.append(loginCard(route)); return; }
+  try { tool.mount(body, ctx); }
+  catch (e) { body.append(h("div", { class: "card err" }, "This tool failed to load: " + e.message)); console.error(e); }
+}
+
+document.getElementById("auth").addEventListener("click", () => {
+  if (token) { signOut(); return; }
+  main.replaceChildren(h("h1", {}, "Sign in"), loginCard(route));
+});
+search.addEventListener("input", filterNav);
+addEventListener("hashchange", route);
+buildNav();
+route();

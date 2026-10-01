@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import hmac
 import io
 import json
@@ -24,7 +25,11 @@ API_LINK = re.compile(r"^/api/links/([A-Za-z0-9_-]{1,64})$")
 API_CLICKS = re.compile(r"^/api/links/([A-Za-z0-9_-]{1,64})/clicks\.csv$")
 API_QR = re.compile(r"^/api/links/([A-Za-z0-9_-]{1,64})/qr\.svg$")
 API_STATS = re.compile(r"^/api/links/([A-Za-z0-9_-]{1,64})/stats$")
-CSP = "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:"
+CSP = ("default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data: blob:; "
+       "base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
+STATIC_TYPES = {".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".html": "text/html; charset=utf-8",
+                ".svg": "image/svg+xml", ".json": "application/json", ".ico": "image/x-icon", ".txt": "text/plain; charset=utf-8"}
+STATIC_PART = re.compile(r"^[A-Za-z0-9_-]+(\.[A-Za-z0-9]+)?$")
 
 
 def _int_param(qs: dict, name: str, default: int) -> int:
@@ -178,8 +183,9 @@ def make_handler(service: LinkService, config: Config):
             path, qs = parts.path, parse_qs(parts.query)
 
             if path == "/":
-                html = resources.files("hitchly").joinpath("ui.html").read_bytes()
-                return self._send(200, html, "text/html; charset=utf-8", {"Content-Security-Policy": CSP})
+                return self._static("index.html")
+            if path.startswith("/ui/"):
+                return self._static(path[4:])
             if path == "/health":
                 return self._json(200, {"status": "ok", "version": __version__})
             if path == "/metrics":
@@ -240,6 +246,22 @@ def make_handler(service: LinkService, config: Config):
             if m := SLUG_PATH.match(path):
                 return self._redirect(m.group(1), password=None)
             self._error(404, "not found")
+
+        def _static(self, rel: str):
+            """Serve a packaged UI file. Allow-list: simple names, known extensions, at most 2 levels deep."""
+            parts = rel.split("/")
+            ext = "." + parts[-1].rsplit(".", 1)[-1].lower() if "." in parts[-1] else ""
+            if len(parts) > 3 or not all(STATIC_PART.match(p) for p in parts) or ext not in STATIC_TYPES:
+                return self._error(404, "not found")
+            node = resources.files("hitchly").joinpath("ui", *parts)
+            if not node.is_file():
+                return self._error(404, "not found")
+            data = node.read_bytes()
+            etag = '"' + hashlib.sha1(data).hexdigest()[:20] + '"'
+            headers = {"ETag": etag, "Cache-Control": "no-cache", "Content-Security-Policy": CSP}
+            if self.headers.get("If-None-Match") == etag:
+                return self._send(304, b"", STATIC_TYPES[ext], headers)
+            self._send(200, data, STATIC_TYPES[ext], headers)
 
         def _redirect(self, slug: str, password: str | None):
             try:
