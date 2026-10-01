@@ -106,6 +106,14 @@ class CliTests(unittest.TestCase):
         self.ctl("edit", "cli-t1", "--clear-tags")
         self.assertEqual(slugs("--tag", "gamma"), set())
 
+    def test_max_visits_flags(self):
+        self.ctl("new", "https://example.com", "--slug", "cli-cap", "--max-visits", "3")
+        self.assertEqual(json.loads(self.ctl("get", "cli-cap")[1])["max_visits"], 3)
+        self.ctl("edit", "cli-cap", "--max-visits", "9")
+        self.assertEqual(json.loads(self.ctl("get", "cli-cap")[1])["max_visits"], 9)
+        self.ctl("edit", "cli-cap", "--no-max-visits")
+        self.assertIsNone(json.loads(self.ctl("get", "cli-cap")[1])["max_visits"])
+
     def test_check_reports_dead_links(self):
         self.ctl("new", f"{self.base}/health", "--slug", "chk-ok")
         self.ctl("new", "http://127.0.0.1:1/", "--slug", "chk-dead")

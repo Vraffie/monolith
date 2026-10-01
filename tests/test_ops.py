@@ -21,6 +21,24 @@ class OpsTests(unittest.TestCase):
             self.assertEqual(restored.get("keep").clicks, 1)
             self.assertEqual(sqlite3.connect(dest).execute("PRAGMA integrity_check").fetchone()[0], "ok")
 
+    def test_max_visits_is_race_free(self):
+        import threading
+        with tempfile.TemporaryDirectory() as d:
+            svc = LinkService(Storage(os.path.join(d, "race.db")))
+            svc.create("https://a.com", slug="race", max_visits=5)
+            results, lock = [], threading.Lock()
+
+            def visit():
+                ok = svc.resolve("race", user_agent=BROWSER) is not None
+                with lock:
+                    results.append(ok)
+
+            threads = [threading.Thread(target=visit) for _ in range(25)]
+            [t.start() for t in threads]
+            [t.join() for t in threads]
+            self.assertEqual(sum(results), 5)
+            self.assertEqual(svc.get("race").clicks, 5)
+
     def test_totals(self):
         now = [1000]
         svc = LinkService(Storage(":memory:"), clock=lambda: now[0])

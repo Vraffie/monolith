@@ -105,6 +105,8 @@ def make_handler(service: LinkService, config: Config):
                 "clicks": link.clicks,
                 "bot_clicks": link.bot_clicks,
                 "tags": list(link.tags),
+                "max_visits": link.max_visits,
+                "exhausted": link.exhausted,
             }
 
         def _dispatch(self, fn):
@@ -225,7 +227,7 @@ def make_handler(service: LinkService, config: Config):
                 target = service.resolve(m.group(1), self.headers.get("Referer"), self.headers.get("User-Agent"),
                                          head=self.command == "HEAD")
                 if target is None:
-                    return self._send(410, b"This link has expired.\n", "text/plain; charset=utf-8")
+                    return self._send(410, b"This link is no longer available.\n", "text/plain; charset=utf-8")
                 return self._send(302, b"", headers={"Location": target, "Cache-Control": "no-store"})
             self._error(404, "not found")
 
@@ -242,7 +244,8 @@ def make_handler(service: LinkService, config: Config):
                     self.close_connection = True
                     return self._error(429, "too many links created, slow down", {"Retry-After": str(int(wait) + 1)})
             body = self._read_json()
-            link = service.create(body.get("url"), body.get("slug"), body.get("ttl_seconds"), body.get("tags"))
+            link = service.create(body.get("url"), body.get("slug"), body.get("ttl_seconds"), body.get("tags"),
+                                  body.get("max_visits"))
             if creations:
                 creations.record(self._client_ip())
             self._json(201, self._link_json(link), {"Location": f"/api/links/{link.slug}"})

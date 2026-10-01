@@ -7,7 +7,7 @@ from hitchly_client import Hitchly, HitchlyError
 
 api = Hitchly("http://localhost:8080", token="...", timeout=10)
 
-link = api.create("https://example.com/docs", slug="docs", ttl_seconds=3600, tags=["docs"])
+link = api.create("https://example.com/docs", slug="docs", ttl_seconds=3600, tags=["docs"], max_visits=100)
 for l in api.iter_links(tag="docs"): ...      # also q="substring"
 print(link["short_url"])
 
@@ -29,9 +29,9 @@ except HitchlyError as e:
 
 | Method | Endpoint |
 |--------|----------|
-| `create(url, slug=None, ttl_seconds=None, tags=None)` | `POST /api/links` |
+| `create(url, slug=None, ttl_seconds=None, tags=None, max_visits=None)` | `POST /api/links` |
 | `get(slug)` · `list(limit, offset)` · `iter_links(page_size)` | `GET /api/links…` |
-| `update(slug, url=None, ttl_seconds=…, tags=None)` | `PATCH /api/links/{slug}` |
+| `update(slug, url=None, ttl_seconds=…, tags=None, max_visits=…)` | `PATCH /api/links/{slug}` |
 | `delete(slug)` | `DELETE /api/links/{slug}` |
 | `stats(slug, days)` · `clicks_csv(slug)` · `qr_svg(slug, scale)` | stats / `clicks.csv` / `qr.svg` |
 | `metrics()` · `health()` | `/metrics`, `/health` |

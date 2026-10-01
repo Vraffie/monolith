@@ -45,10 +45,12 @@ MIGRATIONS = [
     );
     CREATE INDEX idx_link_tags_tag ON link_tags(tag);
     """,
+    # 3: optional cap on human visits
+    "ALTER TABLE links ADD COLUMN max_visits INTEGER;",
 ]
 
 _LINK_SELECT = """
-SELECT l.id, l.slug, l.url, l.created_at, l.expires_at,
+SELECT l.id, l.slug, l.url, l.created_at, l.expires_at, l.max_visits,
        (SELECT COUNT(*) FROM clicks c WHERE c.link_id = l.id AND c.is_bot = 0) AS clicks,
        (SELECT COUNT(*) FROM clicks c WHERE c.link_id = l.id AND c.is_bot = 1) AS bot_clicks,
        (SELECT group_concat(t.tag, ',') FROM link_tags t WHERE t.link_id = l.id) AS tags
@@ -58,7 +60,8 @@ FROM links l
 
 def _row_to_link(row: sqlite3.Row) -> Link:
     return Link(row["id"], row["slug"], row["url"], row["created_at"], row["expires_at"], row["clicks"], row["bot_clicks"],
-                tuple(sorted((row["tags"] or "").split(","))) if row["tags"] else ())
+                tuple(sorted((row["tags"] or "").split(","))) if row["tags"] else (),
+                row["max_visits"])
 
 
 class Storage:
@@ -110,18 +113,18 @@ class Storage:
                 conn.close()
 
     def create_link(self, slug: str, url: str, created_at: int, expires_at: int | None,
-                    tags: tuple[str, ...] = ()) -> Link:
+                    tags: tuple[str, ...] = (), max_visits: int | None = None) -> Link:
         with self._conn() as conn:
             try:
                 cur = conn.execute(
-                    "INSERT INTO links (slug, url, created_at, expires_at) VALUES (?, ?, ?, ?)",
-                    (slug, url, created_at, expires_at),
+                    "INSERT INTO links (slug, url, created_at, expires_at, max_visits) VALUES (?, ?, ?, ?, ?)",
+                    (slug, url, created_at, expires_at, max_visits),
                 )
             except sqlite3.IntegrityError:
                 raise Conflict(slug) from None
             conn.executemany("INSERT INTO link_tags (link_id, tag) VALUES (?, ?)",
                              [(cur.lastrowid, t) for t in tags])
-            return Link(cur.lastrowid, slug, url, created_at, expires_at, 0, 0, tuple(tags))
+            return Link(cur.lastrowid, slug, url, created_at, expires_at, 0, 0, tuple(tags), max_visits)
 
     def get_link(self, slug: str) -> Link | None:
         with self._conn() as conn:
@@ -129,9 +132,9 @@ class Storage:
         return _row_to_link(row) if row else None
 
     def update_link(self, slug: str, changes: dict) -> bool:
-        """Apply only the keys present in `changes`: url, expires_at, tags. False if no such link."""
+        """Apply only the keys present in `changes`: url, expires_at, max_visits, tags. False if no such link."""
         sets, args = [], []
-        for column in ("url", "expires_at"):
+        for column in ("url", "expires_at", "max_visits"):
             if column in changes:
                 sets.append(f"{column} = ?")
                 args.append(changes[column])
@@ -186,12 +189,22 @@ class Storage:
             return conn.execute("DELETE FROM links WHERE slug = ?", (slug,)).rowcount > 0
 
     def record_click(self, link_id: int, ts: int, referrer: str | None, user_agent: str | None,
-                     bot: bool = False) -> None:
+                     bot: bool = False, max_visits: int | None = None) -> bool:
+        """Insert a click. With `max_visits`, a human click is only stored while the cap has room.
+
+        The check and insert are ONE statement, so concurrent visitors cannot overshoot the cap.
+        Returns False if the cap was already reached (nothing stored).
+        """
+        cap = max_visits if not bot else None  # bots never consume, and are never blocked by, the cap
         with self._conn() as conn:
-            conn.execute(
-                "INSERT INTO clicks (link_id, ts, referrer, user_agent, is_bot) VALUES (?, ?, ?, ?, ?)",
-                (link_id, ts, (referrer or "")[:512] or None, (user_agent or "")[:256] or None, int(bot)),
+            cur = conn.execute(
+                "INSERT INTO clicks (link_id, ts, referrer, user_agent, is_bot) "
+                "SELECT ?, ?, ?, ?, ? WHERE ? IS NULL OR "
+                "(SELECT COUNT(*) FROM clicks WHERE link_id = ? AND is_bot = 0) < ?",
+                (link_id, ts, (referrer or "")[:512] or None, (user_agent or "")[:256] or None, int(bot),
+                 cap, link_id, cap),
             )
+            return cur.rowcount == 1
 
     def clicks_per_day(self, link_id: int, since: int, include_bots: bool = False) -> list[tuple[str, int]]:
         with self._conn() as conn:

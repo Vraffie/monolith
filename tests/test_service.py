@@ -99,6 +99,28 @@ class ServiceTests(unittest.TestCase):
         self.svc.resolve("exp", "https://r/", BROWSER)
         self.assertEqual(self.svc.export_clicks("exp"), [(self.now, "https://r/", BROWSER, False)])
 
+    def test_max_visits_caps_humans_only(self):
+        self.svc.create("https://a.com", slug="cap", max_visits=2)
+        bot = "Slackbot-LinkExpanding 1.0"
+        self.assertIsNotNone(self.svc.resolve("cap", user_agent=bot))  # bots never consume the cap
+        self.assertIsNotNone(self.svc.resolve("cap", user_agent=BROWSER))
+        self.assertIsNotNone(self.svc.resolve("cap", user_agent=BROWSER))
+        self.assertTrue(self.svc.get("cap").exhausted)
+        self.assertIsNone(self.svc.resolve("cap", user_agent=BROWSER))  # 3rd human
+        self.assertIsNone(self.svc.resolve("cap", user_agent=bot))  # exhausted links are gone for everyone
+        self.assertEqual(self.svc.get("cap").clicks, 2)
+
+    def test_max_visits_edit_and_validation(self):
+        self.svc.create("https://a.com", slug="cap2", max_visits=1)
+        self.svc.resolve("cap2", user_agent=BROWSER)
+        self.assertIsNone(self.svc.resolve("cap2", user_agent=BROWSER))
+        self.assertEqual(self.svc.update("cap2", {"max_visits": 5}).max_visits, 5)  # raising the cap revives it
+        self.assertIsNotNone(self.svc.resolve("cap2", user_agent=BROWSER))
+        self.assertIsNone(self.svc.update("cap2", {"max_visits": None}).max_visits)
+        for bad in (0, -1, True, "5", 1.5, 10**10):
+            with self.subTest(bad=bad), self.assertRaises(ValidationError):
+                self.svc.create("https://a.com", max_visits=bad)
+
     def test_tags_create_normalise_filter_replace(self):
         link = self.svc.create("https://a.com/docs", slug="tg1", tags=["Docs", "launch", "docs"])
         self.assertEqual(link.tags, ("docs", "launch"))

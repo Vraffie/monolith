@@ -141,6 +141,16 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(self.request("PATCH", "/api/links/tagged", {"tags": ["z"]})[1]["tags"], ["z"])
         self.assertEqual(self.request("POST", "/api/links", {"url": "https://a.com", "tags": ["BAD TAG"]})[0], 400)
 
+    def test_max_visits_over_http(self):
+        self.request("POST", "/api/links", {"url": "https://a.com", "slug": "once", "max_visits": 1})
+        ua = {"User-Agent": BROWSER}
+        self.assertEqual(self.request("GET", "/once", token=None, headers=ua)[0], 302)
+        status, _, _ = self.request("GET", "/once", token=None, headers=ua)
+        self.assertEqual(status, 410)
+        _, link, _ = self.request("GET", "/api/links/once")
+        self.assertEqual((link["max_visits"], link["exhausted"], link["clicks"]), (1, True, 1))
+        self.assertEqual(self.request("PATCH", "/api/links/once", {"max_visits": 0})[0], 400)
+
     def test_qr_svg(self):
         self.request("POST", "/api/links", {"url": "https://a.com", "slug": "qrme"})
         status, body, res = self.request("GET", "/api/links/qrme/qr.svg")

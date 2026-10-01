@@ -27,7 +27,7 @@ claims, not measurements. Nothing here was benchmarked.
 | Click analytics (time, referrer) | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
 | Geo / device / browser breakdown | ✔ | ◐ | ✔ | ✔ | ✔ | ✘ |
 | Bot filtering | ✔ | — | — | — | — | ✔ |
-| Max visits per link | ✔ | — | — | — | — | ✘ |
+| Max visits per link | ✔ | — | — | — | — | ✔ |
 | Tags / search | ✔ | — | — | ✔ | — | ✔ |
 | Password-protected links | — | plugin | ✔ | ✔ | — | ✘ |
 | Device-targeted redirects | ✔ | — | — | ✔ | — | ✘ |

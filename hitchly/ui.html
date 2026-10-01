@@ -128,7 +128,7 @@ async function loadLinks() {
       el("div", { className: "row" }, el("a", { className: "short", href: l.short_url, target: "_blank", rel: "noopener", textContent: l.short_url }), el("div", {}, copy, " ", st, " ", qrBtn, " ", edit, " ", del)),
       el("div", { className: "target", textContent: l.url }),
       ...(l.tags.length ? [el("div", { className: "meta", textContent: l.tags.map(t => "#" + t).join(" ") })] : []),
-      el("div", { className: "meta", textContent: `${l.clicks} clicks` + (l.bot_clicks ? ` (+${l.bot_clicks} bot)` : "") + ` · created ${fmt(l.created_at)}` + (l.expires_at ? (l.expired ? " · EXPIRED" : ` · expires ${fmt(l.expires_at)}`) : "") }),
+      el("div", { className: "meta", textContent: `${l.clicks} clicks` + (l.bot_clicks ? ` (+${l.bot_clicks} bot)` : "") + ` · created ${fmt(l.created_at)}` + (l.expires_at ? (l.expired ? " · EXPIRED" : ` · expires ${fmt(l.expires_at)}`) : "") + (l.max_visits ? ` · limit ${l.max_visits}` + (l.exhausted ? " (used up)" : "") : "") }),
       stats, qrBox));
   }
 }

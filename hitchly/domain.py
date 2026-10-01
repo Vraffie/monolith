@@ -14,6 +14,7 @@ RESERVED_SLUGS = frozenset({"api", "health", "static", "favicon.ico", "robots.tx
 MAX_URL_LENGTH = 2048
 TAG_RE = re.compile(r"^[a-z0-9_-]{1,32}$")
 MAX_TAGS = 10
+MAX_VISITS_LIMIT = 1_000_000_000
 MAX_TTL_SECONDS = 10 * 365 * 24 * 3600
 
 
@@ -39,9 +40,15 @@ class Link:
     clicks: int = 0  # human visits (bots excluded)
     bot_clicks: int = 0
     tags: tuple[str, ...] = ()
+    max_visits: int | None = None
 
     def is_expired(self, now: int) -> bool:
         return self.expires_at is not None and now >= self.expires_at
+
+    @property
+    def exhausted(self) -> bool:
+        """True once the human-visit cap (if any) is used up."""
+        return self.max_visits is not None and self.clicks >= self.max_visits
 
 
 def validate_url(url: object) -> str:
@@ -78,6 +85,14 @@ def validate_ttl(ttl: object) -> int | None:
     if isinstance(ttl, bool) or not isinstance(ttl, int) or not 1 <= ttl <= MAX_TTL_SECONDS:
         raise ValidationError("ttl_seconds must be a positive integer (max 10 years)")
     return ttl
+
+
+def validate_max_visits(value: object) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= MAX_VISITS_LIMIT:
+        raise ValidationError("max_visits must be a positive integer")
+    return value
 
 
 def validate_tags(tags: object) -> tuple[str, ...]:

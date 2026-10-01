@@ -51,6 +51,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--slug")
     s.add_argument("--ttl", type=parse_duration, metavar="DURATION", help="expire after e.g. 2h, 7d")
     s.add_argument("--tag", action="append", default=[], help="tag the link (repeatable)")
+    s.add_argument("--max-visits", type=int, metavar="N", help="stop redirecting (410) after N human visits")
 
     s = sub.add_parser("ls", help="list links")
     s.add_argument("--limit", type=int, default=50)
@@ -68,6 +69,9 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--no-expiry", action="store_true", help="remove expiry")
     s.add_argument("--tag", action="append", default=None, help="replace the tag list (repeatable)")
     s.add_argument("--clear-tags", action="store_true", help="remove all tags")
+    g2 = s.add_mutually_exclusive_group()
+    g2.add_argument("--max-visits", type=int, metavar="N", help="set the visit cap")
+    g2.add_argument("--no-max-visits", action="store_true", help="remove the visit cap")
 
     s = sub.add_parser("rm", help="delete a link")
     s.add_argument("slug"); s.add_argument("-y", "--yes", action="store_true", help="don't ask")
@@ -84,7 +88,7 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("export", help="export all links")
     s.add_argument("--format", choices=["json", "csv"], default="json")
 
-    s = sub.add_parser("import", help="bulk-create links from a .json or .csv file (url[,slug,ttl_seconds,tags])")
+    s = sub.add_parser("import", help="bulk-create links from a .json or .csv file (url[,slug,ttl_seconds,tags,max_visits])")
     s.add_argument("file")
     s.add_argument("--skip-existing", action="store_true", help="treat slug conflicts as skipped, not failed")
 
@@ -133,7 +137,7 @@ def probe(url: str, timeout: float) -> tuple[bool, str]:
 def run(args, api: Hitchly, out, err, confirm=input) -> int:
     cmd = args.cmd
     if cmd == "new":
-        print(api.create(args.target, args.slug, args.ttl, args.tag)["short_url"], file=out)
+        print(api.create(args.target, args.slug, args.ttl, args.tag, args.max_visits)["short_url"], file=out)
     elif cmd == "ls":
         links = api.list(args.limit, tag=args.tag, q=args.search)["links"]
         if args.json:
@@ -154,8 +158,13 @@ def run(args, api: Hitchly, out, err, confirm=input) -> int:
             kwargs["tags"] = []
         elif args.tag is not None:
             kwargs["tags"] = args.tag
-        if kwargs["url"] is None and "ttl_seconds" not in kwargs and "tags" not in kwargs:
-            print("nothing to change: pass --target, --ttl, --no-expiry, --tag or --clear-tags", file=err)
+        if args.no_max_visits:
+            kwargs["max_visits"] = None
+        elif args.max_visits is not None:
+            kwargs["max_visits"] = args.max_visits
+        if kwargs["url"] is None and not {"ttl_seconds", "tags", "max_visits"} & kwargs.keys():
+            print("nothing to change: pass --target, --ttl, --no-expiry, --tag, --clear-tags, "
+                  "--max-visits or --no-max-visits", file=err)
             return 2
         link = api.update(args.slug, **kwargs)
         print(f"{link['short_url']} -> {link['url']} (expires: {_ts(link['expires_at'])})", file=out)
@@ -199,8 +208,10 @@ def run(args, api: Hitchly, out, err, confirm=input) -> int:
                 raw_tags = row.get("tags") or []
                 if isinstance(raw_tags, str):
                     raw_tags = [t for t in re.split(r"[;,]", raw_tags) if t.strip()]
+                cap = row.get("max_visits")
                 api.create(row.get("url") or "", (row.get("slug") or None),
-                           int(ttl) if ttl not in (None, "") else None, raw_tags)
+                           int(ttl) if ttl not in (None, "") else None, raw_tags,
+                           int(cap) if cap not in (None, "") else None)
                 created += 1
             except (HitchlyError, ValueError) as e:
                 if args.skip_existing and isinstance(e, HitchlyError) and e.status == 409:

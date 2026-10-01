@@ -12,6 +12,7 @@ from .domain import (
     ValidationError,
     generate_slug,
     validate_slug,
+    validate_max_visits,
     validate_tags,
     validate_ttl,
     validate_url,
@@ -28,34 +29,35 @@ class LinkService:
         self.clock = clock
 
     def create(self, url: object, slug: object = None, ttl_seconds: object = None,
-               tags: object = None) -> Link:
+               tags: object = None, max_visits: object = None) -> Link:
         url = validate_url(url)
         ttl = validate_ttl(ttl_seconds)
         tag_list = validate_tags(tags)
+        cap = validate_max_visits(max_visits)
         now = self.clock()
         expires_at = now + ttl if ttl else None
 
         if slug not in (None, ""):
-            return self.storage.create_link(validate_slug(slug), url, now, expires_at, tag_list)
+            return self.storage.create_link(validate_slug(slug), url, now, expires_at, tag_list, cap)
 
         for length in (7, 7, 7, 8, 9):  # collisions are rare; widen if they keep happening
             try:
-                return self.storage.create_link(generate_slug(length), url, now, expires_at, tag_list)
+                return self.storage.create_link(generate_slug(length), url, now, expires_at, tag_list, cap)
             except Conflict:
                 continue
         raise RuntimeError("could not allocate a unique slug")
 
     def update(self, slug: str, changes: dict) -> Link:
-        """Edit a link. Only `url`, `ttl_seconds` and `tags` may change; the slug is permanent.
+        """Edit a link. Only `url`, `ttl_seconds`, `tags` and `max_visits` may change; the slug is permanent.
 
         `ttl_seconds` restarts the countdown from now; `None` removes the expiry.
         `tags` replaces the whole tag list.
         """
-        unknown = set(changes) - {"url", "ttl_seconds", "tags"}
+        unknown = set(changes) - {"url", "ttl_seconds", "tags", "max_visits"}
         if unknown:
             raise ValidationError(f"cannot change: {', '.join(sorted(unknown))}")
         if not changes:
-            raise ValidationError("nothing to update (send url, ttl_seconds and/or tags)")
+            raise ValidationError("nothing to update (send url, ttl_seconds, tags and/or max_visits)")
         self.get(slug)  # 404 before validating
         update: dict = {}
         if "url" in changes:
@@ -65,6 +67,8 @@ class LinkService:
             update["expires_at"] = self.clock() + ttl if ttl else None
         if "tags" in changes:
             update["tags"] = validate_tags(changes["tags"])
+        if "max_visits" in changes:
+            update["max_visits"] = validate_max_visits(changes["max_visits"])
         self.storage.update_link(slug, update)
         return self.get(slug)
 
@@ -91,15 +95,16 @@ class LinkService:
                 head: bool = False) -> str | None:
         """Return the target URL and record the click.
 
-        Raises NotFound for unknown slugs; returns None if the link has expired.
+        Raises NotFound for unknown slugs; returns None if the link has expired or used up its visit cap.
         """
         link = self.get(slug)
         now = self.clock()
-        if link.is_expired(now):
+        if link.is_expired(now) or link.exhausted:
             return None
         # HEAD is what scanners and preview fetchers send; a person's browser sends GET.
-        self.storage.record_click(link.id, now, referrer, user_agent, bot=head or is_bot(user_agent))
-        return link.url
+        stored = self.storage.record_click(link.id, now, referrer, user_agent,
+                                           bot=head or is_bot(user_agent), max_visits=link.max_visits)
+        return link.url if stored else None
 
     def stats(self, slug: str, days: int = 7, include_bots: bool = False) -> dict:
         link = self.get(slug)
