@@ -9,8 +9,9 @@ const store = {
 let token = store.get();
 let prefill = "";
 // On a static host (GitHub Pages etc.) there is no Hitchly server: only the client-side tools work.
-let serverless = false;
-fetch("health").then(r => { serverless = !r.ok; }, () => { serverless = true; }).finally(() => route());
+// The offline bundle sets __HITCHLY_STATIC__: it has no server by construction, so it never even tries to reach one.
+let serverless = !!globalThis.__HITCHLY_STATIC__;
+(serverless ? Promise.resolve() : fetch("health").then(r => { serverless = !r.ok; }, () => { serverless = true; })).finally(() => route());
 
 export const ctx = {
   origin: location.origin,

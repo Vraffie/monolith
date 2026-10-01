@@ -1,0 +1,11 @@
+{
+  "name": "hitchly-build",
+  "private": true,
+  "description": "Build tooling only (the offline bundle). Hitchly itself has no runtime dependencies; see scripts/bundle.mjs.",
+  "scripts": {
+    "bundle": "node scripts/bundle.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

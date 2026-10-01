@@ -3,9 +3,14 @@ import { h, field, input, textarea, debounce } from "../dom.js";
 const TIMEOUT_MS = 1500;
 
 /** Run in a Worker so a catastrophic pattern (e.g. (a+)+$) can be terminated instead of freezing the tab. */
+// The offline bundle (scripts/bundle.mjs) has no separate files, so it ships the worker's source as a string and runs it from a Blob.
+const makeWorker = () => globalThis.__HITCHLY_WORKER__
+  ? new Worker(URL.createObjectURL(new Blob([globalThis.__HITCHLY_WORKER__], { type: "text/javascript" })))
+  : new Worker(new URL("../lib/regex-worker.js", import.meta.url), { type: "module" });
+
 function runInWorker(pattern, flags, text) {
   return new Promise(resolve => {
-    const w = new Worker(new URL("../lib/regex-worker.js", import.meta.url), { type: "module" });
+    const w = makeWorker();
     const timer = setTimeout(() => { w.terminate(); resolve({ ok: false, error: `Stopped after ${TIMEOUT_MS} ms: this pattern may backtrack catastrophically` }); }, TIMEOUT_MS);
     w.onmessage = e => { clearTimeout(timer); w.terminate(); resolve(e.data); };
     w.onerror = () => { clearTimeout(timer); w.terminate(); resolve({ ok: false, error: "The regex engine failed" }); };

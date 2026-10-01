@@ -54,6 +54,28 @@ jobs:
           node tests/e2e/batch1.cjs
           node tests/e2e/a11y.cjs
 
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci && npm install --no-save playwright && npx playwright install --with-deps chromium
+      - run: node scripts/bundle.mjs
+      - name: The single-file toolbox works offline, is CSP-pinned and passes the tool suites
+        run: |
+          export BUNDLE=1 STATIC=1 BASE_URL="file://$PWD/dist/hitchly-toolbox.html"
+          node tests/e2e/bundle.cjs
+          node tests/e2e/tools.cjs
+          node tests/e2e/batch1.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hitchly-toolbox
+          path: |
+            dist/hitchly-toolbox.html
+            dist/hitchly-toolbox.html.sha256
+
   docker:
     runs-on: ubuntu-latest
     steps:

@@ -2,6 +2,8 @@
 // Usage: BASE_URL=http://127.0.0.1:8080 HITCHLY_TOKEN=... node tests/e2e/<file>.cjs   (exit code 1 on failure)
 const { chromium } = require('playwright');
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8080';
+// BUNDLE=1: BASE_URL is the file:// URL of dist/hitchly-toolbox.html (no trailing slash before the #)
+const U = id => (process.env.BUNDLE ? `${BASE}#/${id}` : `${BASE}/#/${id}`);
 (async () => {
   const b = await chromium.launch({ ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}), args:['--no-sandbox'] });
   const ctx = await b.newContext({ permissions: ['clipboard-read','clipboard-write'] });
@@ -10,10 +12,10 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8080';
   p.on('console', m=>{ if (m.type()==='error') bad.push('console: '+m.text()); });
   let pass=0, fail=0;
   const ok = (name, cond, extra='') => { cond ? pass++ : fail++; console.log((cond?'PASS ':'FAIL ')+name+(cond?'':'  -> '+extra)); };
-  const go = async id => { await p.goto(`${BASE}/#/${id}`); await p.waitForSelector('main h1'); await p.waitForTimeout(80); };
+  const go = async id => { await p.goto(U(id)); await p.waitForSelector('main h1'); await p.waitForTimeout(80); };
   const out = async n => (await p.locator('.out pre').nth(n).innerText());
 
-  await p.goto(BASE+'/'); await p.waitForSelector('nav a');
+  await p.goto(process.env.BUNDLE ? BASE : BASE+'/'); await p.waitForSelector('nav a');
   ok('nav lists 37 tools', (await p.$$('nav a')).length === 37, String((await p.$$('nav a')).length));
 
   await go('base64'); await p.fill('textarea','hello'); await p.waitForTimeout(80);
@@ -93,12 +95,12 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8080';
   await p.fill('#toolSearch','hash'); ok('tool search filters nav', (await p.$$('nav a:not([hidden])')).length === 1);
   // mobile: the tool list is collapsed behind a menu button and opens/closes
   const m = await (await b.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })).newPage();
-  await m.goto(BASE + '/#/base64'); await m.waitForSelector('main h1');
+  await m.goto(U('base64')); await m.waitForSelector('main h1');
   ok('mobile: tool list is collapsed by default', !(await m.isVisible('nav')));
   await m.click('#menu'); ok('mobile: menu opens the tool list', await m.isVisible('nav') && (await m.getAttribute('#menu', 'aria-expanded')) === 'true');
   await m.click('nav a[data-id=json]'); await m.waitForSelector('main h1:has-text("JSON formatter")');
   ok('mobile: picking a tool closes the menu', !(await m.isVisible('nav')));
-  await m.goto(BASE + '/#/qr'); await m.waitForSelector('main h1');
+  await m.goto(U('qr')); await m.waitForSelector('main h1');
   ok('qr: no error is shown before the user types', (await m.innerText('main')).includes('Enter some text') === false);
 
   console.log(`\n${pass} passed, ${fail} failed`);

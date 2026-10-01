@@ -18,6 +18,17 @@ One process, one SQLite file, **zero dependencies** (Python 3.10+ standard libra
 
 Everything except the link and admin tools runs entirely in your browser and works signed out, even on a static host (see [docs/HOSTING.md](docs/HOSTING.md)).
 
+## Offline bundle: the whole toolbox as one file
+
+```bash
+npm install && npm run bundle      # or: make bundle   (Node 22; esbuild is a build-time dependency only)
+# -> dist/hitchly-toolbox.html  (~150 KB, one file)
+```
+Double-click it, keep it on a USB stick, or drop it on any web host. It runs every client-side tool with **no network access at all**: its
+Content-Security-Policy allows exactly its own inline code (pinned by hash) and `connect-src 'none'`, builds are byte-for-byte reproducible, and
+tests prove it makes zero network requests and refuses to run if a single character is changed. Tools that need a server (short links, tracer, admin)
+say so instead of asking for a token. CI publishes it as a build artifact together with its SHA-256.
+
 ## Features
 
 - Shorten any `http(s)` URL; random 7-char slug or your own custom slug

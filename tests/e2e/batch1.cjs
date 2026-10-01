@@ -1,6 +1,7 @@
 // Browser tests for the batch-1 tools (diff, cron, converter, HTTP reference, TOTP, subnet, lorem, chmod, escape, encodings, units, validators, Basic auth, keys, encryption, ULID).
 const { chromium } = require('playwright');
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8080';
+const U = id => (process.env.BUNDLE ? `${BASE}#/${id}` : `${BASE}/#/${id}`);  // BUNDLE=1: BASE_URL is the file:// bundle
 (async () => {
   const b = await chromium.launch({ ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}), args: ['--no-sandbox'] });
   const p = await (await b.newContext({ permissions: ['clipboard-read', 'clipboard-write'] })).newPage(); const bad = [];
@@ -8,12 +9,12 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8080';
   p.on('console', m => { if (m.type() === 'error') bad.push('console: ' + m.text()); });
   let pass = 0, fail = 0;
   const ok = (name, cond, extra = '') => { cond ? pass++ : fail++; console.log((cond ? 'PASS ' : 'FAIL ') + name + (cond ? '' : '  -> ' + String(extra).slice(0, 300))); };
-  const go = async id => { await p.goto(`${BASE}/#/${id}`); await p.waitForSelector('main h1'); await p.waitForTimeout(120); };
+  const go = async id => { await p.goto(U(id)); await p.waitForSelector('main h1'); await p.waitForTimeout(120); };
   const main = () => p.innerText('main');
   const lab = (text, tag = 'input') => `main label:has-text("${text}") + ${tag}`;
   const out = n => p.locator('.out pre').nth(n).innerText();
 
-  await p.goto(BASE + '/'); await p.waitForSelector('nav a');
+  await p.goto(process.env.BUNDLE ? BASE : BASE + '/'); await p.waitForSelector('nav a');
   ok('nav lists 37 tools', (await p.$$('nav a')).length === 37, String((await p.$$('nav a')).length));
 
   // diff

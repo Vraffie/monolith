@@ -19,6 +19,9 @@ The page detects that there is no server and explains that the link tools need o
 - Alternative: Cloudflare Pages, unlimited bandwidth, 500 builds/month, 5 custom domains per project ([source](https://dev.to/david_viejo_4d48fdfa7cfff/cloudflare-pages-free-tier-limits-pricing-2026-1f8f)). Point it at the repo, build command none, output directory `_site` (assemble as in the workflow).
 - GitHub Pages cannot set HTTP headers, so the CSP comes from the `<meta>` tag in `index.html` (it cannot express `frame-ancestors`).
 
+### Or skip hosting entirely: the single-file bundle
+`npm run bundle` produces `dist/hitchly-toolbox.html`, the whole client-side toolbox in one file that works from `file://` with no network. Share it by email or USB, or put that one file on any static host. See the README.
+
 ## 2. The server, ranked for *this* app (SQLite file, one process)
 
 | Option | Cost | Persistent disk | Fit | Notes |
