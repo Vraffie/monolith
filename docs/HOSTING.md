@@ -44,6 +44,10 @@ Then put the tunnel (or nginx, see [DEPLOYMENT.md](DEPLOYMENT.md)) in front, set
 ### If you must use an ephemeral host
 SQLite on a disk that is wiped loses every link. Mitigate, don't ignore: run `hitch backup` from a cron job elsewhere (it downloads a consistent copy through the API), and restore by placing the file at `HITCHLY_DB` before start-up. We have **not** built automatic restore-on-boot; if you want to host this way, that is the feature to ask for.
 
+### A fourth option: Cloudflare Workers + D1 (feasibility shown, not shipped)
+`experiments/workers-spike/` shows the core running on Workers + D1 in the real Workers runtime. It would give **free persistent hosting** with no server, but it is a spike, not a supported deployment; quotas and the
+password-hashing CPU cost were not tested. See [STACK-REVIEW.md](STACK-REVIEW.md).
+
 ## 3. Testing for free
 
 | What | How | Cost |

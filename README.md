@@ -140,6 +140,7 @@ docs/          product brief, architecture, ADRs
 | [docs/API.md](docs/API.md) | Full endpoint reference |
 | [docs/ECOSYSTEM.md](docs/ECOSYSTEM.md) | How server, SDK, CLI and ops tools fit together |
 | [docs/HOSTING.md](docs/HOSTING.md) | Free hosting options (static toolbox on Pages; server on a Pi/Oracle/tunnel) and free testing |
+| [docs/STACK-REVIEW.md](docs/STACK-REVIEW.md) | Measured stack review: what we fixed, limits, alternatives (Go, Node/TS, Workers + D1) and a recommendation |
 | [docs/TOOL-IDEAS.md](docs/TOOL-IDEAS.md) | Researched backlog: more tools and use cases, with priorities and what we won't build |
 | [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md) | Bookmarklet, shell, CI, cron, share-sheet recipes |
 | [docs/COMPETITIVE-ANALYSIS.md](docs/COMPETITIVE-ANALYSIS.md) | How we compare to Shlink, YOURLS, Kutt, Dub… and why |
