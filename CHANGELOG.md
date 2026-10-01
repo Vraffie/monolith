@@ -11,6 +11,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
   metrics `linkly_*` → `hitchly_*`.
 
 ### Added
+- UI bookmarklet and `#new=<url>` prefill; `docs/INTEGRATIONS.md` recipes.
 - `hitch import` column mapping (`--url-col`, `--slug-col`, `--delimiter`, `--slug-last-segment`, `--default-tag`) and `--dry-run`; tolerates a UTF-8 BOM.
 - Password-protected links: salted-scrypt storage, no-JS form, 303 on success, no click until verified, per-client lockout. CLI `--ask-password`/`--password-env`/`--no-password`; UI password field.
 - Max visits: `max_visits` caps human visits (410 afterwards), atomic under concurrency; CLI `--max-visits`/`--no-max-visits`.

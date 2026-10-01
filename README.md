@@ -115,6 +115,8 @@ docs/          product brief, architecture, ADRs
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Layers, flows, data model, security, ADR index |
 | [docs/API.md](docs/API.md) | Full endpoint reference |
 | [docs/ECOSYSTEM.md](docs/ECOSYSTEM.md) | How server, SDK, CLI and ops tools fit together |
+| [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md) | Bookmarklet, shell, CI, cron, share-sheet recipes |
+| [docs/COMPETITIVE-ANALYSIS.md](docs/COMPETITIVE-ANALYSIS.md) | How we compare to Shlink, YOURLS, Kutt, Dub… and why |
 | [docs/CLI.md](docs/CLI.md) · [docs/SDK.md](docs/SDK.md) | `hitch` and Python client |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | systemd, Docker, nginx, backups |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Ground rules, commit style, releasing |

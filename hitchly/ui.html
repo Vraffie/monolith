@@ -27,6 +27,7 @@
   .meta { color:var(--muted); font-size:.8rem; }
   .err { color:var(--bad); min-height:1.4em; }
   .stats { margin-top:8px; font-size:.85rem; }
+  details.card summary { cursor:pointer; }
   .bar { display:inline-block; height:8px; background:var(--accent); border-radius:2px; vertical-align:middle; margin-right:6px; }
   @media (max-width:520px) { form { grid-template-columns:1fr; } }
 </style>
@@ -54,6 +55,12 @@
         <div class="full row"><button>Shorten</button><span class="err" id="createErr" role="alert"></span></div>
       </form>
     </div>
+    <details class="card" id="bm">
+      <summary>Bookmarklet: shorten the page you are on</summary>
+      <p class="meta">Drag this to your bookmarks bar, then click it on any page. It opens Hitchly with the page URL filled in.
+        (Some sites with a strict Content-Security-Policy block bookmarklets; copy the URL manually there.)</p>
+      <a id="bmLink" class="short" href="#">Hitch this page</a>
+    </details>
     <div class="card"><input id="search" type="search" placeholder="Search slug, URL or #tag" aria-label="Search links"><div id="list"></div><div class="meta" id="empty" hidden>No links yet.</div></div>
   </div>
 </main>
@@ -134,9 +141,20 @@ async function loadLinks() {
   }
 }
 
+// Bookmarklet / share-target entry point: https://host/#new=<encoded url> prefills the form.
+function readPrefill() {
+  const m = location.hash.match(/^#new=(.+)$/);
+  if (!m) return;
+  try { $("url").value = decodeURIComponent(m[1]); } catch (e) { /* malformed escape: ignore */ }
+  history.replaceState(null, "", location.pathname + location.search);
+  $("url").focus();
+}
+$("bmLink").href = "javascript:(function(){location.href=" + JSON.stringify(location.origin + "/#new=") + "+encodeURIComponent(location.href)})()";
+$("bmLink").onclick = e => e.preventDefault();  // clicking it here does nothing; it is meant to be dragged
+
 function render() {
   $("login").hidden = !!token; $("app").hidden = !token; $("logout").hidden = !token;
-  if (token) loadLinks().catch(() => {});
+  if (token) { readPrefill(); loadLinks().catch(() => {}); }
 }
 $("loginForm").onsubmit = e => { e.preventDefault(); token = $("token").value.trim(); localStorage.setItem("hitchly_token", token); render(); };
 $("logout").onclick = signOut;
