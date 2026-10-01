@@ -13,6 +13,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
   metrics `linkly_*` → `hitchly_*`.
 
 ### Added
+- **Toolbox batch 1 (15 new tools, 37 in total):** Text & JSON diff, Cron explainer, JSON/YAML/XML/CSV converter, HTTP status & MIME reference, TOTP (2FA) codes with QR, Subnet calculator (IPv4/IPv6, range → CIDR),
+  Lorem ipsum, chmod calculator, Escape & unescape, Text ⇄ bytes/Unicode/NATO, Unit/percentage/Roman converters, IBAN validator & email normaliser, Basic auth header, RSA/ECDSA/Ed25519 key pairs,
+  passphrase text encryption (PBKDF2 → AES-GCM); ULID added to the UUID tool. New group "Network & web". Verified against RFC 4226/6238/7617 vectors, a Myers-diff minimality reference, YAML round-trip
+  property tests, IBAN registry examples; the YAML reader refuses anchors/tags/merge keys/multi-document input instead of guessing.
 - Static deployment: the toolbox works without a server (`.github/workflows/pages.yml` publishes it to GitHub Pages; the UI detects the missing server). `docs/HOSTING.md` compares free hosting options.
 - Bulk create (`POST /api/links/bulk`), overview, purge and backup endpoints; admin tools in the UI (import with column mapping, export, bulk shorten, maintenance); `hitch overview/purge/backup`.
 - Web UI is now a modular toolbox: Short links, QR generator (Wi-Fi, vCard, email, SMS, phone, location; generated in the browser), redirect tracer, UTM builder, URL parser/cleaner, Base64, URL encode/decode, JWT decoder, hash/HMAC, UUID, password/token generator, JSON formatter, timestamp converter, colour + contrast, regex tester, text utilities, base converter, dead-link checker. Client-side tools work without signing in.

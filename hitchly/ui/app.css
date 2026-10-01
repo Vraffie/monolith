@@ -1,7 +1,7 @@
-:root { --bg:#f7f7f5; --fg:#1c1c1a; --muted:#6b6b66; --card:#fff; --line:#e2e2dc; --accent:#2f5bea; --accent-fg:#fff;
+:root { --add:#d7f2dc; --del:#fbdcdc; --bg:#f7f7f5; --fg:#1c1c1a; --muted:#6b6b66; --card:#fff; --line:#e2e2dc; --accent:#2f5bea; --accent-fg:#fff;
         --bad:#c0392b; --ok:#1e8449; --code:#f0f0ec; }
 @media (prefers-color-scheme: dark) {
-  :root { --bg:#161616; --fg:#eee; --muted:#9a9a94; --card:#1f1f1f; --line:#333; --accent:#7b9bff; --accent-fg:#101010;
+  :root { --add:#16361f; --del:#3d1a1a; --bg:#161616; --fg:#eee; --muted:#9a9a94; --card:#1f1f1f; --line:#333; --accent:#7b9bff; --accent-fg:#101010;
           --bad:#ff7a6b; --ok:#58d68d; --code:#262626; }
 }
 * { box-sizing: border-box; }
@@ -48,6 +48,7 @@ button.small { padding:3px 9px; font-size:.82rem; }
 .mono, pre, code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.86rem; }
 pre { background:var(--code); padding:10px 12px; border-radius:6px; overflow:auto; margin:0; white-space:pre-wrap; word-break:break-all; }
 .out { position:relative; }
+.out pre { padding-right:64px; }  /* keep text clear of the Copy button */
 .out .copy { position:absolute; top:6px; right:6px; }
 .muted, .meta { color:var(--muted); font-size:.85rem; }
 .err { color:var(--bad); min-height:1.4em; }
@@ -76,3 +77,17 @@ th, td { text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); 
   nav a { padding:9px 8px; }  /* comfortable touch target */
   .grid { grid-template-columns:1fr; }
 }
+
+/* diff */
+table.diff { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.82rem; }
+table.diff td { padding:1px 8px; white-space:pre-wrap; border-bottom:0; }
+table.diff td.ln { color:var(--muted); text-align:right; width:3.2em; user-select:none; }
+table.diff tr.add td { background:var(--add); } table.diff tr.del td { background:var(--del); }
+.inline-diff { white-space:pre-wrap; word-break:break-word; }
+.inline-diff .add { background:var(--add); } .inline-diff .del { background:var(--del); text-decoration:line-through; }
+.big-code { font:700 2.4rem/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; letter-spacing:.12em; }
+.grid3 { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; }
+.checks label { display:flex; gap:6px; align-items:center; font-size:.9rem; color:var(--fg); margin:2px 0; }
+.scroll { overflow-x:auto; }
+td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+@media (max-width:760px) { .grid3 { grid-template-columns:1fr; } }

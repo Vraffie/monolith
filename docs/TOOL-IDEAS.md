@@ -6,11 +6,14 @@ it-tools.tech) were unreachable from the research sandbox, so category details f
 "offered by several established toolboxes", not usage data: **we found no reliable usage statistics.**
 
 ## Where we stand
-We have 22 tools. Compared with IT-Tools' list, we already cover Base64, URL encode, JWT, hash/HMAC, UUID, password/token, JSON, date/time,
+We had 22 tools when this was written (37 after batch 1). Compared with IT-Tools' list, we already cover Base64, URL encode, JWT, hash/HMAC, UUID, password/token, JSON, date/time,
 colour, regex, case/slug/text stats, integer base, QR (including Wi-Fi), URL parser, UTM and the link service. What the established toolboxes have that we lack
 falls into four buckets.
 
 ## A. Quick wins: pure client-side, testable with published vectors
+
+> **Status: shipped (batch 1, issue #15).** Everything in this table is now in the toolbox, apart from the items noted below. Kept for the reasoning.
+
 Each is one module in `ui/lib` plus a thin UI file, with node tests (same pattern as today).
 
 | Tool | Offered by | Why / how we'd test it |

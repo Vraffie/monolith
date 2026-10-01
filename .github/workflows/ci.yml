@@ -51,6 +51,7 @@ jobs:
           node tests/e2e/links.cjs
           SITE_URL=http://127.0.0.1:8087 node tests/e2e/server-tools.cjs
           node tests/e2e/admin.cjs
+          node tests/e2e/batch1.cjs
           node tests/e2e/a11y.cjs
 
   docker:

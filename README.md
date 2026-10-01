@@ -1,7 +1,7 @@
 # Hitchly
 
-A small, self-hosted URL shortener with click analytics, **plus a browser toolbox of 22 everyday tools**
-(QR codes, UTM builder, redirect tracer, Base64, JWT, hashes, UUIDs, JSON, regex, …).
+A small, self-hosted URL shortener with click analytics, **plus a browser toolbox of 37 everyday tools**
+(QR codes, redirect tracer, diff, cron, converters, TOTP, subnets, Base64, JWT, hashes, UUIDs, regex, …).
 One process, one SQLite file, **zero dependencies** (Python 3.10+ standard library only).
 
 ## The toolbox (web UI at `/`)
@@ -10,10 +10,11 @@ One process, one SQLite file, **zero dependencies** (Python 3.10+ standard libra
 |-------|-------|
 | Links | Short links (create, search, tags, edit, stats, QR), Bulk shorten |
 | QR & URLs | QR generator (URL, Wi-Fi, contact card, email, SMS, phone, location), Redirect tracer, UTM builder, URL parser & cleaner |
-| Encode & decode | Base64, URL encode/decode, JWT decoder, Hash & HMAC |
-| Generate | UUID v4/v7, Password & token generator |
-| Format & convert | JSON formatter, Timestamp converter, Colour converter & WCAG contrast, Regex tester, Text utilities, Number base converter |
-| Admin | Dead-link checker, Import (column mapping), Export, Maintenance (overview, purge, backup) |
+| Encode & decode | Base64, URL encode/decode, Escape & unescape (HTML, JS, JSON, SQL), Text ⇄ bytes / Unicode / NATO, JWT decoder, Hash & HMAC, Encrypt & decrypt text (AES-GCM) |
+| Generate | UUID v4/v7 & ULID, Password & token generator, TOTP (2FA) codes with QR, RSA/ECDSA/Ed25519 key pairs, Lorem ipsum |
+| Format & convert | JSON formatter, JSON/YAML/XML/CSV converter, Text & JSON diff, Cron explainer, Timestamp converter, Colour & contrast, Regex tester, Text utilities, Number base converter, Unit / percentage / Roman numeral converters, chmod calculator, IBAN validator & email normaliser |
+| Network & web | HTTP status & MIME reference, Subnet calculator (IPv4/IPv6, range → CIDR), Basic auth header |
+| Admin | Dead-link checker, Import, Export, Maintenance (overview, purge, backup) |
 
 Everything except the link and admin tools runs entirely in your browser and works signed out, even on a static host (see [docs/HOSTING.md](docs/HOSTING.md)).
 
@@ -107,7 +108,7 @@ Status codes: `400` validation, `401` bad token, `404` unknown, `409` slug taken
 
 ```bash
 make test          # 113 Python tests: unit + end-to-end (server, SDK and CLI over real HTTP)
-node --test "tests/js/*.test.mjs"   # 20 tests for the browser tool libraries (Node 22)
+node --test "tests/js/*.test.mjs"   # 50 tests for the browser tool libraries (Node 22), incl. RFC test vectors
 # browser end-to-end suites (Playwright): see tests/e2e/*.cjs
 ```
 

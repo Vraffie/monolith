@@ -3,10 +3,12 @@ const fs = require('fs');
 // Accessibility + mobile-layout audit of every tool. Needs: npm i playwright axe-core. Exits 1 on any violation or overflow.
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8080';
 const axeSrc = fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
-const IDS = ['links','bulk','qr','tracer','utm','url-parser','base64','url-encode','jwt','hash','uuid','password','json','time','color','regex','text','radix','checker','import','export','maintenance'];
+let IDS = [];
 (async () => {
   const b = await chromium.launch({ ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}), args: ['--no-sandbox'] });
   const summary = {};
+  { const c = await b.newContext(); const q = await c.newPage(); await q.goto(BASE + '/'); IDS = await q.evaluate(async () => (await import('/ui/tools/index.js')).tools.map(t => t.id)); await c.close(); }
+  console.log(`auditing ${IDS.length} tools`);
   for (const scheme of ['light', 'dark']) {
     const ctx = await b.newContext({ colorScheme: scheme, bypassCSP: true, viewport: { width: 1280, height: 900 } });
     await ctx.addInitScript(() => localStorage.setItem('hitchly_token', 'audit'));
