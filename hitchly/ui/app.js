@@ -1,5 +1,8 @@
 import { h, toast } from "./dom.js";
 import { tools, GROUPS } from "./tools/index.js";
+import { structure } from "./nav.js";
+
+const layout = structure(tools, GROUPS);
 
 const KEY = "hitchly_token";
 const store = {
@@ -68,12 +71,16 @@ const search = document.getElementById("toolSearch");
 function buildNav() {
   navList.replaceChildren();
   for (const group of GROUPS) {
-    const items = tools.filter(t => t.group === group);
+    const items = layout.items.filter(t => t.group === group);
     if (!items.length) continue;
     navList.append(h("h2", {}, group));
-    for (const t of items) {
-      navList.append(h("a", { href: "#/" + t.id, "data-id": t.id, "data-q": (t.title + " " + (t.keywords || "")).toLowerCase() },
-        t.title, t.needsAuth ? h("span", { class: "lock", title: "Needs your API token", "aria-label": "(needs sign-in)" }, " 🔒") : null));
+    const subs = [...new Set(items.map(t => t.sub))];
+    for (const sub of subs) {
+      if (sub && subs.length > 1) navList.append(h("h3", {}, sub));
+      for (const t of items.filter(i => i.sub === sub)) {
+        navList.append(h("a", { href: "#/" + t.id, "data-id": t.id, "data-q": (t.title + " " + (t.keywords || "")).toLowerCase() },
+          t.title, t.needsAuth ? h("span", { class: "lock", title: "Needs your API token", "aria-label": "(needs sign-in)" }, " 🔒") : null));
+      }
     }
   }
 }
@@ -81,10 +88,10 @@ function buildNav() {
 function filterNav() {
   const q = search.value.trim().toLowerCase();
   for (const a of nav.querySelectorAll("a")) a.hidden = !!q && !a.dataset.q.includes(q);
-  for (const h2 of nav.querySelectorAll("h2")) {
-    let el = h2.nextElementSibling, any = false;
-    while (el && el.tagName === "A") { any ||= !el.hidden; el = el.nextElementSibling; }
-    h2.hidden = !any;
+  for (const head of nav.querySelectorAll("h2, h3")) {
+    let el = head.nextElementSibling, any = false;
+    while (el && el.tagName !== "H2" && !(head.tagName === "H3" && el.tagName === "H3")) { any ||= el.tagName === "A" && !el.hidden; el = el.nextElementSibling; }
+    head.hidden = !any;
   }
 }
 
@@ -99,13 +106,19 @@ let routeSeq = 0;
 async function route() {
   const seq = ++routeSeq;  // a slower, older navigation must not overwrite a newer one
   const id = currentId();
-  const tool = tools.find(t => t.id === id) || tools[0];
+  // #/encoders opens the bundle's first tab; #/base64 opens that tab directly (old links keep working)
+  const asCombo = layout.combos.find(c => c.id === id);
+  const tool = asCombo ? layout.byId[asCombo.parts[0][0]] : layout.byId[id] || tools[0];
+  const member = layout.comboOf[tool.id], combo = member && member.combo;
   for (const a of nav.querySelectorAll("a")) {
-    if (a.dataset.id === tool.id) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+    if (a.dataset.id === (combo ? combo.id : tool.id)) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
   }
   document.title = tool.title + " · Hitchly";
   document.getElementById("auth").textContent = token ? "Sign out" : "Sign in";
-  main.replaceChildren(h("h1", {}, tool.title), h("p", { class: "blurb" }, tool.blurb));
+  main.replaceChildren(h("h1", {}, combo ? combo.title : tool.title));
+  if (combo) main.append(h("div", { class: "tabs", role: "group", "aria-label": combo.title + " tools" },
+    combo.parts.map(([pid, label]) => h("a", { href: "#/" + pid, ...(pid === tool.id ? { "aria-current": "page" } : {}) }, label, layout.byId[pid].needsAuth && !combo.needsAuth ? " 🔒" : ""))));
+  main.append(h("p", { class: "blurb" }, tool.blurb));
   const body = h("div");
   main.append(body);
   if (tool.needsAuth && serverless) {

@@ -15,7 +15,7 @@ const U = id => (process.env.BUNDLE ? `${BASE}#/${id}` : `${BASE}/#/${id}`);  //
   const out = n => p.locator('.out pre').nth(n).innerText();
 
   await p.goto(process.env.BUNDLE ? BASE : BASE + '/'); await p.waitForSelector('nav a');
-  ok('nav lists 42 tools', (await p.$$('nav a')).length === 42, String((await p.$$('nav a')).length));
+  ok('nav lists 23 entries (42 tools)', (await p.$$('nav a')).length === 23, String((await p.$$('nav a')).length));
 
   // diff
   await go('diff');

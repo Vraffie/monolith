@@ -6,16 +6,16 @@ One process, one SQLite file, **zero dependencies** (Python 3.10+ standard libra
 
 ## The toolbox (web UI at `/`)
 
-| Group | Tools |
+| Group | Menu entry (tabs) |
 |-------|-------|
-| Links | Short links (create, search, tags, edit, stats, QR), Bulk shorten |
-| QR & URLs | QR generator (URL, Wi-Fi, contact card, email, SMS, phone, location), Redirect tracer, UTM builder, URL parser & cleaner |
-| Encode & decode | Base64, URL encode/decode, Escape & unescape (HTML, JS, JSON, SQL), Text ⇄ bytes / Unicode / NATO, JWT decoder, Hash & HMAC, Encrypt & decrypt text (AES-GCM) |
-| Generate | UUID v4/v7 & ULID, Password & token generator, TOTP (2FA) codes with QR, RSA/ECDSA/Ed25519 key pairs, Lorem ipsum |
-| Format & convert | JSON formatter, JSON/YAML/XML/CSV converter, Text & JSON diff, Cron explainer, Timestamp converter, Colour & contrast, Regex tester, Text utilities, Number base converter, Unit / percentage / Roman numeral converters, chmod calculator, IBAN validator & email normaliser |
-| Images | Photo privacy cleaner (removes EXIF/GPS without re-encoding), Image converter & compressor, Favicon & app icon generator (ZIP), Colour-blindness simulator, File ⇄ data: URI |
-| Network & web | HTTP status & MIME reference, Subnet calculator (IPv4/IPv6, range → CIDR), Basic auth header |
-| Admin | Dead-link checker, Import, Export, Maintenance (overview, purge, backup) |
+| Links | **Short links** (Links · Bulk shorten) |
+| QR & URLs | QR generator (URL, Wi-Fi, contact card, email, SMS, phone, location) · **URL builder & cleaner** (UTM · Parser & cleaner) · Redirect tracer |
+| Encode & decode | **Text encoders** (Base64 · URL · Escape · Bytes & Unicode) · **Hash, JWT & encryption** |
+| Generate | **IDs, passwords & keys** (UUID/ULID · Password · TOTP · Key pairs) · Lorem ipsum |
+| Format & convert | **Data formats** (JSON · Convert JSON/YAML/XML/CSV · Diff) · **Text & regex** · **Converters** (Timestamps · Number bases · Units/%/Roman) · Colour & contrast · IBAN & email validator · Cron explainer · chmod calculator |
+| Images | Photo privacy cleaner · **Image converter & icons** (Convert & resize · Favicons) · Colour-blindness simulator · File ⇄ data: URI |
+| Network & web | **HTTP & network** (Status & MIME · Subnets · Basic auth) |
+| Admin | Dead-link checker · **Import & export** · Maintenance |
 
 Everything except the link and admin tools runs entirely in your browser and works signed out, even on a static host (see [docs/HOSTING.md](docs/HOSTING.md)).
 

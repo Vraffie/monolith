@@ -4,6 +4,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
 
 ## [Unreleased]
 ### Changed
+- **Navigation:** similar tools are bundled into one menu entry with tabs (42 tools → 23 entries, e.g. "Text encoders" = Base64 · URL · Escape · Bytes & Unicode) and groups have sub-headings. Every tool keeps its own URL, so existing `#/base64` links work; search looks inside bundles. New `tests/e2e/nav.cjs`.
 - **Performance:** removed a ~43 ms stall on every response with a body, raised the listen backlog, reuse one SQLite connection per thread with WAL, and made visit counters O(1) (a redirect on a link with 500,000 clicks took 164 ms; now 0.014 ms). Redirects ~8x faster under concurrency. ADR 0005.
 - Server limits: 10 s socket timeout and a 512-thread cap. Database schema migration 5 adds per-link counters (automatic).
 - `clicks` / `total_clicks` / `hitchly_clicks_total` now exclude bots (previously every redirect counted).

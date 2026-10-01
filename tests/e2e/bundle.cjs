@@ -31,7 +31,7 @@ const sha = s => createHash('sha256').update(s).digest('base64');
   p.on('console', m => { if (m.type() === 'error') bad.push(m.text()); }); p.on('pageerror', e => bad.push('pageerror: ' + e.message));
   p.on('request', r => { if (!/^(file|data|blob):/.test(r.url())) remote.push(r.url()); });
   await p.goto(url + '#/base64'); await p.waitForSelector('nav a'); await p.waitForTimeout(500);
-  ok('opens from file:// and builds the navigation (42 tools)', (await p.$$('nav a')).length === 42);
+  ok('opens from file:// and builds the navigation (23 entries, 42 tools)', (await p.$$('nav a')).length === 23);
   await p.fill('main textarea', 'hello'); await p.waitForTimeout(100);
   ok('a tool works offline', (await p.locator('.out pre').first().innerText()) === 'aGVsbG8=');
   await p.goto(url + '#/links'); await p.waitForTimeout(300);

@@ -94,3 +94,8 @@ td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
 table.kv { border-collapse:collapse; } table.kv th { text-align:left; font-weight:600; padding:2px 14px 2px 0; white-space:nowrap; vertical-align:top; } table.kv td { padding:2px 0; word-break:break-word; }
 .preview { max-width:100%; max-height:360px; border:1px solid var(--line); border-radius:6px; background:repeating-conic-gradient(#ccc 0 25%,#fff 0 50%) 0 0/16px 16px; }
 .pair { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; } .pair figure { margin:0; } .pair figcaption { font-size:.8rem; color:var(--muted); margin-top:4px; }
+nav h3 { font-size:.72rem; font-weight:500; color:var(--muted); margin:8px 8px 2px 14px; }
+.tabs { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 12px; }
+.tabs a { padding:6px 12px; border:1px solid var(--line); border-radius:999px; text-decoration:none; color:var(--fg); font-size:.88rem; }
+.tabs a:hover { background:var(--code); } .tabs a[aria-current="page"] { background:var(--accent); color:var(--accent-fg); border-color:var(--accent); }
+@media (max-width:760px) { .tabs a { padding:9px 14px; } }

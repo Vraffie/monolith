@@ -63,3 +63,16 @@ password-hashing CPU cost were not tested. See [STACK-REVIEW.md](STACK-REVIEW.md
 | Static bundle locally | `mkdir -p /tmp/site/hitchly && cp -r hitchly/ui /tmp/site/hitchly/ && mv /tmp/site/hitchly/ui/index.html /tmp/site/hitchly/ && python -m http.server -d /tmp/site 8086`, open `http://127.0.0.1:8086/hitchly/` | free |
 
 Not verified: the Dockerfile, `docker-compose.yml`, and the `pages.yml`/`ci.yml` workflows have never been executed (no Docker daemon or GitHub Actions runner in our environment).
+
+## Testing on a phone
+
+Pick by what you want to check. **Use HTTPS if you can:** browsers only expose `crypto.subtle` (Hash/HMAC, encryption, key pairs, TOTP), the clipboard and install-to-home-screen on secure origins, so over plain `http://192.168…` those tools fail even though the page loads.
+
+| Goal | How | HTTPS |
+|---|---|---|
+| Look and feel, tap targets, scrolling (fastest) | Same Wi-Fi: `HITCHLY_HOST=0.0.0.0 HITCHLY_TOKEN=x python -m hitchly serve`, open `http://<your-computer-ip>:8080` on the phone (allow the port in your firewall). Only for a trusted network; stop it afterwards. | no: crypto/clipboard tools will not work |
+| Everything, with a link you can open on any phone | `cloudflared tunnel --url http://localhost:8080` (no account) prints a temporary `https://….trycloudflare.com` URL. Anyone with the link can reach your server while it runs, so set a real `HITCHLY_TOKEN`. | yes |
+| The static toolbox, permanently | Push to `main`: the Pages workflow publishes it at `https://<user>.github.io/<repo>/` (one-time: Settings → Pages → Source: GitHub Actions). Client-side tools only. | yes |
+| Offline, no server at all | `make bundle`, send `dist/hitchly-toolbox.html` to the phone (AirDrop, cloud drive, USB) and open it from Files. Image/QR/text tools work; whether crypto tools work from a `file://` page depends on the phone browser, so check those. | browser-dependent |
+
+Before using a real phone, a desktop browser's device mode (DevTools → toggle device toolbar) shows the layout at 390 px, and `tests/e2e/a11y.cjs` already checks every tool for horizontal overflow and small tap targets at that width. That is an approximation: it does not cover iOS Safari, on-screen keyboards, or the camera/file pickers, which is what a real phone is for. Worth checking by hand: the menu button, the tab rows in bundled tools, file pickers in the image tools (on iOS the "Photo Library" chooser may hand over HEIC; the cleaner supports JPEG, PNG and WebP only), and copy buttons.

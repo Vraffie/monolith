@@ -23,7 +23,7 @@ const { chromium } = require('playwright');
   const answers=['https://example.com/two','2']; p.on('dialog', d=>d.accept(answers.shift()??''));
   await p.click('button:has-text("Edit")'); await p.waitForSelector('text=https://example.com/two');
   console.log('4 edited ok');
-  await p.fill('#toolSearch','zzz'); console.log('5 nav filter hides links:', await p.isHidden('nav a[data-id=links]'));
+  await p.fill('#toolSearch','zzz'); console.log('5 nav filter hides links:', await p.isHidden('nav a[data-id=short-links]'));
   await p.fill('#toolSearch',''); 
   await p.click('#auth'); console.log('6 signed out button now:', await p.innerText('#auth'));
   console.log('violations/errors:', bad); await b.close();

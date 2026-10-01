@@ -16,7 +16,7 @@ const U = id => (process.env.BUNDLE ? `${BASE}#/${id}` : `${BASE}/#/${id}`);
   const out = async n => (await p.locator('.out pre').nth(n).innerText());
 
   await p.goto(process.env.BUNDLE ? BASE : BASE+'/'); await p.waitForSelector('nav a');
-  ok('nav lists 42 tools', (await p.$$('nav a')).length === 42, String((await p.$$('nav a')).length));
+  ok('nav lists 23 entries (42 tools)', (await p.$$('nav a')).length === 23, String((await p.$$('nav a')).length));
 
   await go('base64'); await p.fill('textarea','hello'); await p.waitForTimeout(80);
   ok('base64 encode', (await out(0)) === 'aGVsbG8=', await out(0));
@@ -98,7 +98,7 @@ const U = id => (process.env.BUNDLE ? `${BASE}#/${id}` : `${BASE}/#/${id}`);
   await m.goto(U('base64')); await m.waitForSelector('main h1');
   ok('mobile: tool list is collapsed by default', !(await m.isVisible('nav')));
   await m.click('#menu'); ok('mobile: menu opens the tool list', await m.isVisible('nav') && (await m.getAttribute('#menu', 'aria-expanded')) === 'true');
-  await m.click('nav a[data-id=json]'); await m.waitForSelector('main h1:has-text("JSON formatter")');
+  await m.click('nav a[data-id=data-formats]'); await m.waitForSelector('main h1:has-text("Data formats")');
   ok('mobile: picking a tool closes the menu', !(await m.isVisible('nav')));
   await m.goto(U('qr')); await m.waitForSelector('main h1');
   ok('qr: no error is shown before the user types', (await m.innerText('main')).includes('Enter some text') === false);
