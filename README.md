@@ -1,7 +1,21 @@
 # Hitchly
 
-A small, self-hosted URL shortener with click analytics. One process, one SQLite
-file, **zero dependencies** (Python 3.10+ standard library only).
+A small, self-hosted URL shortener with click analytics, **plus a browser toolbox of 22 everyday tools**
+(QR codes, UTM builder, redirect tracer, Base64, JWT, hashes, UUIDs, JSON, regex, …).
+One process, one SQLite file, **zero dependencies** (Python 3.10+ standard library only).
+
+## The toolbox (web UI at `/`)
+
+| Group | Tools |
+|-------|-------|
+| Links | Short links (create, search, tags, edit, stats, QR), Bulk shorten |
+| QR & URLs | QR generator (URL, Wi-Fi, contact card, email, SMS, phone, location), Redirect tracer, UTM builder, URL parser & cleaner |
+| Encode & decode | Base64, URL encode/decode, JWT decoder, Hash & HMAC |
+| Generate | UUID v4/v7, Password & token generator |
+| Format & convert | JSON formatter, Timestamp converter, Colour converter & WCAG contrast, Regex tester, Text utilities, Number base converter |
+| Admin | Dead-link checker, Import (column mapping), Export, Maintenance (overview, purge, backup) |
+
+Everything except the link and admin tools runs entirely in your browser and works signed out, even on a static host (see [docs/HOSTING.md](docs/HOSTING.md)).
 
 ## Features
 
@@ -92,7 +106,9 @@ Status codes: `400` validation, `401` bad token, `404` unknown, `409` slug taken
 ## Development
 
 ```bash
-make test          # 80+ tests: unit + end-to-end (server, SDK and CLI over real HTTP)
+make test          # 113 Python tests: unit + end-to-end (server, SDK and CLI over real HTTP)
+node --test "tests/js/*.test.mjs"   # 20 tests for the browser tool libraries (Node 22)
+# browser end-to-end suites (Playwright): see tests/e2e/*.cjs
 ```
 
 Layout:
@@ -105,7 +121,9 @@ hitchly/
   web.py       HTTP adapter: routing, auth, JSON, security headers
   ratelimit.py sliding-window limiter (failed-auth lockout)
   config.py    env-var configuration
-  ui.html      single-file admin UI (no build step)
+  probe.py     SSRF-guarded URL probing (redirect tracer, dead-link checker)
+  qr.py        QR encoder (the browser has an identical JS port)
+  ui/          web UI: app shell, one ES module per tool (tools/), pure logic (lib/); no build step
 hitchly_client/ Python SDK over the HTTP API
 hitchctl/     CLI built on the SDK
 deploy/        Prometheus config; Dockerfile + docker-compose.yml at the root

@@ -5,7 +5,7 @@ Hitchly started as a server. It is now a small set of tools that all talk to the
 ```
                          ┌──────────────┐
    browser ─────────────▶│              │
-   web UI (ui.html)      │              │      ┌─────────┐
+   web UI (ui/)         │              │      ┌─────────┐
                          │   hitchly  │─────▶│ SQLite  │◀── python -m hitchly backup / purge
    hitch ──▶ hitchly_ │   (server)   │      └─────────┘
    (CLI)         client ▶│              │
@@ -20,7 +20,7 @@ Hitchly started as a server. It is now a small set of tools that all talk to the
 | **Server** | `hitchly/` | Running the service | [README](../README.md), [API](API.md) |
 | **Python SDK** | `hitchly_client/` | Integrating from code | [SDK.md](SDK.md) |
 | **CLI** | `hitchctl/` | Shell, scripts, cron, migrations | [CLI.md](CLI.md) |
-| **Web UI** (+ bookmarklet) | `hitchly/ui.html` | Occasional manual use | [INTEGRATIONS.md](INTEGRATIONS.md) |
+| **Web UI / toolbox** (+ bookmarklet) | `hitchly/ui/` | Link management plus 20 browser tools; works static (no server) for client-side tools | [README](../README.md), [HOSTING.md](HOSTING.md), [INTEGRATIONS.md](INTEGRATIONS.md) |
 | **Ops commands** | `python -m hitchly purge\|backup` | Maintenance on the server host | [DEPLOYMENT.md](DEPLOYMENT.md) |
 | **Observability** | `/metrics`, `deploy/prometheus.yml` | Monitoring | [DEPLOYMENT.md](DEPLOYMENT.md) |
 | **Packaging / CI** | `Dockerfile`, `docker-compose.yml`, `.github/workflows/ci.yml` | Shipping | [DEPLOYMENT.md](DEPLOYMENT.md) |

@@ -14,6 +14,12 @@ Dependencies point inward only: `web → service → (domain, storage)`;
 The service takes a clock and a storage instance, so tests need no mocking
 frameworks — they use an in-memory DB and a fake clock.
 
+## The web UI
+`hitchly/ui/` is plain ES modules with no build step: `app.js` (shell: auth, hash router, tool nav), `dom.js` (DOM helpers that never use `innerHTML`),
+`tools/*.js` (one module per tool: `{id, title, group, needsAuth, mount(root, ctx)}`) and `lib/*.js` (pure, DOM-free logic that Node tests exercise).
+Tools that don't set `needsAuth` run entirely client-side, so the same files deploy as a static site. Served from an allow-list (`/ui/<name>`) with a CSP that
+forbids inline script and style. The QR encoder exists twice (`qr.py`, `lib/qr.js`); a test requires byte-identical matrices.
+
 ## Beyond the server
 The SDK (`hitchly_client`) and CLI (`hitch`) sit outside this layering and consume only the HTTP API
 (see [ECOSYSTEM.md](ECOSYSTEM.md) and ADR 0004). `ratelimit.py` is an in-process helper used by `web.py`.
