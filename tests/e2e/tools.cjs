@@ -14,7 +14,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8080';
   const out = async n => (await p.locator('.out pre').nth(n).innerText());
 
   await p.goto(BASE+'/'); await p.waitForSelector('nav a');
-  ok('nav lists 15 tools', (await p.$$('nav a')).length === 15, String((await p.$$('nav a')).length));
+  ok('nav lists 16 tools', (await p.$$('nav a')).length === 16, String((await p.$$('nav a')).length));
 
   await go('base64'); await p.fill('textarea','hello'); await p.waitForTimeout(80);
   ok('base64 encode', (await out(0)) === 'aGVsbG8=', await out(0));
@@ -73,6 +73,12 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8080';
   ok('radix 255 -> ff', (await p.innerText('main')).includes('ff'));
   await p.fill('main input >> nth=0','xyz'); await p.selectOption('select','2'); await p.waitForTimeout(80);
   ok('radix invalid digit error', (await p.innerText('.err')).includes('not a valid base-2'));
+
+  await go('qr'); await p.waitForSelector('img[alt="QR code"]', { state: 'attached' }).catch(()=>{});
+  await p.fill('main textarea','https://example.com/hello'); await p.waitForSelector('img[alt="QR code"]');
+  ok('qr text renders', await p.isVisible('img[alt="QR code"]'));
+  await p.selectOption('main select >> nth=0','wifi'); await p.fill('label:has-text("Network name") + input','Home'); await p.waitForTimeout(80);
+  ok('qr wifi asks for password', (await p.innerText('.err')).includes('password is required'));
 
   await go('utm'); await p.fill('input[type=url]','https://example.com/p?a=1'); await p.fill('input[placeholder^="newsletter"]','News'); await p.waitForTimeout(100);
   ok('utm built', (await out(0)) === 'https://example.com/p?a=1&utm_source=News', await out(0));
