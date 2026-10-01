@@ -54,37 +54,43 @@ class Hitchly:
         return json.loads(raw) if raw else None
 
     # ---- API ---------------------------------------------------------
-    def create(self, url: str, slug: str | None = None, ttl_seconds: int | None = None) -> dict:
+    def create(self, url: str, slug: str | None = None, ttl_seconds: int | None = None,
+               tags: list[str] | None = None) -> dict:
         body: dict = {"url": url}
         if slug:
             body["slug"] = slug
         if ttl_seconds is not None:
             body["ttl_seconds"] = ttl_seconds
+        if tags:
+            body["tags"] = tags
         return self._json("POST", "/api/links", body)
 
     def get(self, slug: str) -> dict:
         return self._json("GET", f"/api/links/{urllib.parse.quote(slug)}")
 
-    def list(self, limit: int = 50, offset: int = 0) -> dict:
-        return self._json("GET", f"/api/links?limit={limit}&offset={offset}")
+    def list(self, limit: int = 50, offset: int = 0, tag: str | None = None, q: str | None = None) -> dict:
+        query = {"limit": limit, "offset": offset, **({"tag": tag} if tag else {}), **({"q": q} if q else {})}
+        return self._json("GET", "/api/links?" + urllib.parse.urlencode(query))
 
-    def iter_links(self, page_size: int = 200) -> Iterator[dict]:
-        """Yield every link, newest first, paging transparently."""
+    def iter_links(self, page_size: int = 200, tag: str | None = None, q: str | None = None) -> Iterator[dict]:
+        """Yield every matching link, newest first, paging transparently."""
         offset = 0
         while True:
-            page = self.list(page_size, offset)
+            page = self.list(page_size, offset, tag, q)
             yield from page["links"]
             offset += len(page["links"])
             if not page["links"] or offset >= page["total"]:
                 return
 
-    def update(self, slug: str, url: str | None = None, ttl_seconds=_UNSET) -> dict:
-        """Change url and/or expiry. ttl_seconds=None removes the expiry."""
+    def update(self, slug: str, url: str | None = None, ttl_seconds=_UNSET, tags: list[str] | None = None) -> dict:
+        """Change url, expiry and/or tags (tags=[] clears them). ttl_seconds=None removes the expiry."""
         body: dict = {}
         if url is not None:
             body["url"] = url
         if ttl_seconds is not _UNSET:
             body["ttl_seconds"] = ttl_seconds
+        if tags is not None:
+            body["tags"] = tags
         return self._json("PATCH", f"/api/links/{urllib.parse.quote(slug)}", body)
 
     def delete(self, slug: str) -> None:

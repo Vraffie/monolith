@@ -93,6 +93,19 @@ class CliTests(unittest.TestCase):
             self.assertEqual(self.ctl("qr", "cli-qr", "-o", path)[0], 0)
             self.assertTrue(open(path).read().startswith("<svg"))
 
+    def test_tags_and_search(self):
+        self.ctl("new", "https://example.com/t1", "--slug", "cli-t1", "--tag", "alpha", "--tag", "beta")
+        self.ctl("new", "https://example.com/t2", "--slug", "cli-t2", "--tag", "beta")
+        slugs = lambda *a: {l["slug"] for l in json.loads(self.ctl("ls", "--json", *a)[1])}
+        self.assertEqual(slugs("--tag", "beta") & {"cli-t1", "cli-t2"}, {"cli-t1", "cli-t2"})
+        self.assertEqual(slugs("--tag", "alpha"), {"cli-t1"})
+        self.assertEqual(slugs("--search", "example.com/t2"), {"cli-t2"})
+        self.assertIn("alpha,beta", self.ctl("ls", "--tag", "alpha")[1])
+        self.ctl("edit", "cli-t1", "--tag", "gamma")
+        self.assertEqual(slugs("--tag", "gamma"), {"cli-t1"})
+        self.ctl("edit", "cli-t1", "--clear-tags")
+        self.assertEqual(slugs("--tag", "gamma"), set())
+
     def test_check_reports_dead_links(self):
         self.ctl("new", f"{self.base}/health", "--slug", "chk-ok")
         self.ctl("new", "http://127.0.0.1:1/", "--slug", "chk-dead")

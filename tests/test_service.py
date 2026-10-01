@@ -99,6 +99,29 @@ class ServiceTests(unittest.TestCase):
         self.svc.resolve("exp", "https://r/", BROWSER)
         self.assertEqual(self.svc.export_clicks("exp"), [(self.now, "https://r/", BROWSER, False)])
 
+    def test_tags_create_normalise_filter_replace(self):
+        link = self.svc.create("https://a.com/docs", slug="tg1", tags=["Docs", "launch", "docs"])
+        self.assertEqual(link.tags, ("docs", "launch"))
+        self.svc.create("https://b.com/blog", slug="tg2", tags=["launch"])
+        self.svc.create("https://c.com", slug="tg3")
+        self.assertEqual({l.slug for l in self.svc.list(tag="launch")[0]}, {"tg1", "tg2"})
+        self.assertEqual(self.svc.list(tag="LAUNCH")[1], 2)  # count honours the filter
+        self.assertEqual([l.slug for l in self.svc.list(q="BLOG")[0]], ["tg2"])
+        self.assertEqual(self.svc.update("tg1", {"tags": ["new"]}).tags, ("new",))
+        self.assertEqual(self.svc.update("tg1", {"tags": []}).tags, ())
+        self.assertEqual(self.svc.get("tg2").url, "https://b.com/blog")  # untouched by tag edits
+
+    def test_tag_validation(self):
+        for bad in ("not-a-list", [1], ["has space"], ["x" * 33], [f"t{i}" for i in range(11)]):
+            with self.subTest(bad=bad), self.assertRaises(ValidationError):
+                self.svc.create("https://a.com", tags=bad)
+
+    def test_search_treats_wildcards_literally(self):
+        self.svc.create("https://a.com/50%25off", slug="pct")
+        self.svc.create("https://a.com/other", slug="oth")
+        self.assertEqual([l.slug for l in self.svc.list(q="%")[0]], ["pct"])
+        self.assertEqual(self.svc.list(q="_")[0], [])
+
     def test_bots_are_recorded_but_not_counted(self):
         self.svc.create("https://example.com", slug="bots")
         self.svc.resolve("bots", user_agent=BROWSER)

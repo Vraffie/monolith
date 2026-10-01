@@ -36,18 +36,29 @@ MIGRATIONS = [
         "UPDATE clicks SET is_bot = 1 WHERE id = ?",
         [(r[0],) for r in conn.execute("SELECT id, user_agent FROM clicks").fetchall() if is_bot(r[1])],
     ),
+    # 2: tags
+    """
+    CREATE TABLE link_tags (
+        link_id INTEGER NOT NULL REFERENCES links(id) ON DELETE CASCADE,
+        tag     TEXT NOT NULL,
+        PRIMARY KEY (link_id, tag)
+    );
+    CREATE INDEX idx_link_tags_tag ON link_tags(tag);
+    """,
 ]
 
 _LINK_SELECT = """
 SELECT l.id, l.slug, l.url, l.created_at, l.expires_at,
        (SELECT COUNT(*) FROM clicks c WHERE c.link_id = l.id AND c.is_bot = 0) AS clicks,
-       (SELECT COUNT(*) FROM clicks c WHERE c.link_id = l.id AND c.is_bot = 1) AS bot_clicks
+       (SELECT COUNT(*) FROM clicks c WHERE c.link_id = l.id AND c.is_bot = 1) AS bot_clicks,
+       (SELECT group_concat(t.tag, ',') FROM link_tags t WHERE t.link_id = l.id) AS tags
 FROM links l
 """
 
 
 def _row_to_link(row: sqlite3.Row) -> Link:
-    return Link(row["id"], row["slug"], row["url"], row["created_at"], row["expires_at"], row["clicks"], row["bot_clicks"])
+    return Link(row["id"], row["slug"], row["url"], row["created_at"], row["expires_at"], row["clicks"], row["bot_clicks"],
+                tuple(sorted((row["tags"] or "").split(","))) if row["tags"] else ())
 
 
 class Storage:
@@ -98,7 +109,8 @@ class Storage:
             if not self._shared:
                 conn.close()
 
-    def create_link(self, slug: str, url: str, created_at: int, expires_at: int | None) -> Link:
+    def create_link(self, slug: str, url: str, created_at: int, expires_at: int | None,
+                    tags: tuple[str, ...] = ()) -> Link:
         with self._conn() as conn:
             try:
                 cur = conn.execute(
@@ -107,23 +119,33 @@ class Storage:
                 )
             except sqlite3.IntegrityError:
                 raise Conflict(slug) from None
-            return Link(cur.lastrowid, slug, url, created_at, expires_at, 0)
+            conn.executemany("INSERT INTO link_tags (link_id, tag) VALUES (?, ?)",
+                             [(cur.lastrowid, t) for t in tags])
+            return Link(cur.lastrowid, slug, url, created_at, expires_at, 0, 0, tuple(tags))
 
     def get_link(self, slug: str) -> Link | None:
         with self._conn() as conn:
             row = conn.execute(_LINK_SELECT + " WHERE l.slug = ?", (slug,)).fetchone()
         return _row_to_link(row) if row else None
 
-    def update_link(self, slug: str, url: str | None, expires_at: int | None, set_expiry: bool) -> bool:
+    def update_link(self, slug: str, changes: dict) -> bool:
+        """Apply only the keys present in `changes`: url, expires_at, tags. False if no such link."""
         sets, args = [], []
-        if url is not None:
-            sets.append("url = ?"); args.append(url)
-        if set_expiry:
-            sets.append("expires_at = ?"); args.append(expires_at)
-        if not sets:
-            return self.get_link(slug) is not None
+        for column in ("url", "expires_at"):
+            if column in changes:
+                sets.append(f"{column} = ?")
+                args.append(changes[column])
         with self._conn() as conn:
-            return conn.execute(f"UPDATE links SET {', '.join(sets)} WHERE slug = ?", (*args, slug)).rowcount > 0
+            row = conn.execute("SELECT id FROM links WHERE slug = ?", (slug,)).fetchone()
+            if row is None:
+                return False
+            if sets:
+                conn.execute(f"UPDATE links SET {', '.join(sets)} WHERE id = ?", (*args, row["id"]))
+            if "tags" in changes:
+                conn.execute("DELETE FROM link_tags WHERE link_id = ?", (row["id"],))
+                conn.executemany("INSERT INTO link_tags (link_id, tag) VALUES (?, ?)",
+                                 [(row["id"], t) for t in changes["tags"]])
+            return True
 
     def list_clicks(self, link_id: int, limit: int = 10000) -> list[tuple[int, str | None, str | None, bool]]:
         with self._conn() as conn:
@@ -133,16 +155,31 @@ class Storage:
             ).fetchall()
         return [(r["ts"], r["referrer"], r["user_agent"], bool(r["is_bot"])) for r in rows]
 
-    def list_links(self, limit: int = 50, offset: int = 0) -> list[Link]:
+    @staticmethod
+    def _filters(tag: str | None, q: str | None) -> tuple[str, list]:
+        where, args = [], []
+        if tag:
+            where.append("EXISTS (SELECT 1 FROM link_tags t WHERE t.link_id = l.id AND t.tag = ?)")
+            args.append(tag)
+        if q:
+            like = "%" + q.lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+            where.append("(lower(l.slug) LIKE ? ESCAPE '\\' OR lower(l.url) LIKE ? ESCAPE '\\')")
+            args += [like, like]
+        return (" WHERE " + " AND ".join(where)) if where else "", args
+
+    def list_links(self, limit: int = 50, offset: int = 0, tag: str | None = None,
+                   q: str | None = None) -> list[Link]:
+        clause, args = self._filters(tag, q)
         with self._conn() as conn:
             rows = conn.execute(
-                _LINK_SELECT + " ORDER BY l.id DESC LIMIT ? OFFSET ?", (limit, offset)
+                _LINK_SELECT + clause + " ORDER BY l.id DESC LIMIT ? OFFSET ?", (*args, limit, offset)
             ).fetchall()
         return [_row_to_link(r) for r in rows]
 
-    def count_links(self) -> int:
+    def count_links(self, tag: str | None = None, q: str | None = None) -> int:
+        clause, args = self._filters(tag, q)
         with self._conn() as conn:
-            return conn.execute("SELECT COUNT(*) FROM links").fetchone()[0]
+            return conn.execute("SELECT COUNT(*) FROM links l" + clause, args).fetchone()[0]
 
     def delete_link(self, slug: str) -> bool:
         with self._conn() as conn:

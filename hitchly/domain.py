@@ -12,6 +12,8 @@ ALPHABET = string.ascii_letters + string.digits
 SLUG_RE = re.compile(r"^[A-Za-z0-9_-]{3,32}$")
 RESERVED_SLUGS = frozenset({"api", "health", "static", "favicon.ico", "robots.txt", "metrics"})
 MAX_URL_LENGTH = 2048
+TAG_RE = re.compile(r"^[a-z0-9_-]{1,32}$")
+MAX_TAGS = 10
 MAX_TTL_SECONDS = 10 * 365 * 24 * 3600
 
 
@@ -36,6 +38,7 @@ class Link:
     expires_at: int | None
     clicks: int = 0  # human visits (bots excluded)
     bot_clicks: int = 0
+    tags: tuple[str, ...] = ()
 
     def is_expired(self, now: int) -> bool:
         return self.expires_at is not None and now >= self.expires_at
@@ -75,6 +78,21 @@ def validate_ttl(ttl: object) -> int | None:
     if isinstance(ttl, bool) or not isinstance(ttl, int) or not 1 <= ttl <= MAX_TTL_SECONDS:
         raise ValidationError("ttl_seconds must be a positive integer (max 10 years)")
     return ttl
+
+
+def validate_tags(tags: object) -> tuple[str, ...]:
+    """Normalise to a sorted, de-duplicated tuple of lowercase tags."""
+    if tags is None:
+        return ()
+    if not isinstance(tags, (list, tuple)) or not all(isinstance(t, str) for t in tags):
+        raise ValidationError("tags must be a list of strings")
+    cleaned = sorted({t.strip().lower() for t in tags if t.strip()})
+    if len(cleaned) > MAX_TAGS:
+        raise ValidationError(f"at most {MAX_TAGS} tags per link")
+    for t in cleaned:
+        if not TAG_RE.match(t):
+            raise ValidationError(f"invalid tag '{t}' (use 1-32 characters of a-z 0-9 _ -)")
+    return tuple(cleaned)
 
 
 def generate_slug(length: int = 7) -> str:

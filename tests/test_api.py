@@ -132,6 +132,15 @@ class ApiTests(unittest.TestCase):
         _, stats, _ = self.request("GET", "/api/links/botty/stats?include_bots=1")
         self.assertEqual(stats["clicks_per_day"][0]["clicks"], 3)
 
+    def test_tags_over_http(self):
+        status, link, _ = self.request("POST", "/api/links", {"url": "https://a.com", "slug": "tagged", "tags": ["x1", "y2"]})
+        self.assertEqual((status, link["tags"]), (201, ["x1", "y2"]))
+        _, body, _ = self.request("GET", "/api/links?tag=y2")
+        self.assertEqual([l["slug"] for l in body["links"]], ["tagged"])
+        self.assertEqual(body["total"], 1)
+        self.assertEqual(self.request("PATCH", "/api/links/tagged", {"tags": ["z"]})[1]["tags"], ["z"])
+        self.assertEqual(self.request("POST", "/api/links", {"url": "https://a.com", "tags": ["BAD TAG"]})[0], 400)
+
     def test_qr_svg(self):
         self.request("POST", "/api/links", {"url": "https://a.com", "slug": "qrme"})
         status, body, res = self.request("GET", "/api/links/qrme/qr.svg")

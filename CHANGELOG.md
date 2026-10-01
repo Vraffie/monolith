@@ -11,6 +11,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
   metrics `linkly_*` → `hitchly_*`.
 
 ### Added
+- Tags and search: `tags` on create/PATCH, `tag`/`q` filters on list, `hitch --tag/--search`, UI search (`#tag` or text) and tag field; CSV export/import include tags.
 - Bot filtering: clicks are classified by User-Agent; `clicks` counts humans, `bot_clicks` separately; `include_bots` on stats; `bot` column in CSV; `hitchly_bot_clicks_total` metric. Migration backfills history.
 - Versioned schema migrations (`PRAGMA user_version`); old 1.x databases upgrade in place.
 - QR codes: `GET /api/links/{slug}/qr.svg`, `hitch qr`, SDK `qr_svg`, UI button. In-repo stdlib encoder (`hitchly/qr.py`), verified against zxing-cpp for versions 1-40.

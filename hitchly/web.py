@@ -104,6 +104,7 @@ def make_handler(service: LinkService, config: Config):
                 "expired": link.is_expired(service.clock()),
                 "clicks": link.clicks,
                 "bot_clicks": link.bot_clicks,
+                "tags": list(link.tags),
             }
 
         def _dispatch(self, fn):
@@ -185,7 +186,8 @@ def make_handler(service: LinkService, config: Config):
             if path == "/api/links":
                 if not self._require_auth():
                     return
-                links, total = service.list(_int_param(qs, "limit", 50), _int_param(qs, "offset", 0))
+                links, total = service.list(_int_param(qs, "limit", 50), _int_param(qs, "offset", 0),
+                                            qs.get("tag", [None])[0], qs.get("q", [None])[0])
                 return self._json(200, {"total": total, "links": [self._link_json(l) for l in links]})
             if m := API_QR.match(path):
                 if not self._require_auth():
@@ -240,7 +242,7 @@ def make_handler(service: LinkService, config: Config):
                     self.close_connection = True
                     return self._error(429, "too many links created, slow down", {"Retry-After": str(int(wait) + 1)})
             body = self._read_json()
-            link = service.create(body.get("url"), body.get("slug"), body.get("ttl_seconds"))
+            link = service.create(body.get("url"), body.get("slug"), body.get("ttl_seconds"), body.get("tags"))
             if creations:
                 creations.record(self._client_ip())
             self._json(201, self._link_json(link), {"Location": f"/api/links/{link.slug}"})

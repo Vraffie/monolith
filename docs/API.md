@@ -33,7 +33,8 @@ Every error is `{"error": "<message>"}`.
   "expires_at": null,
   "expired": false,
   "clicks": 3,
-  "bot_clicks": 1
+  "bot_clicks": 1,
+  "tags": ["docs", "launch"]
 }
 ```
 `clicks` counts human visits; `bot_clicks` counts crawlers, link-preview fetchers, scripts, requests without a User-Agent, and every `HEAD`
@@ -53,6 +54,7 @@ accidental inflation, it does not stop someone who deliberately sends a browser 
 | `url` | string | yes | `http`/`https`, has host, ≤ 2048 chars, no whitespace |
 | `slug` | string | no | 3–32 chars of `A-Z a-z 0-9 _ -`; not reserved (`api`, `health`, `metrics`, `static`, `favicon.ico`, `robots.txt`, case-insensitive) |
 | `ttl_seconds` | integer | no | 1 – 315 360 000 (10 years) |
+| `tags` | list of strings | no | ≤ 10; each 1–32 chars of `a-z 0-9 _ -` (lower-cased, de-duplicated) |
 
 Limited to `HITCHLY_CREATE_LIMIT` (default 60) successful creations per client per minute, then `429`.
 Returns `201` with the link object and `Location: /api/links/{slug}`.
@@ -64,7 +66,7 @@ curl -X POST localhost:8080/api/links -H "Authorization: Bearer $HITCHLY_TOKEN" 
 ```
 
 ### `GET /api/links` — list
-Query: `limit` (default 50, clamped to 1–200), `offset` (default 0). Newest first.
+Query: `limit` (default 50, clamped to 1–200), `offset` (default 0), `tag` (exact tag), `q` (case-insensitive substring of slug or target URL). Newest first; `total` honours the filters.
 ```json
 { "total": 12, "links": [ { "...link object..." } ] }
 ```
@@ -86,7 +88,7 @@ Returns the link object, or `404`.
 Days with no clicks are omitted. Up to 5 referrers are returned.
 
 ### `PATCH /api/links/{slug}` — edit
-Body may contain `url` and/or `ttl_seconds`; anything else (including `slug`) is a `400`.
+Body may contain `url`, `ttl_seconds` and/or `tags` (replaces the whole list; `[]` clears it); anything else (including `slug`) is a `400`.
 `ttl_seconds` restarts the countdown from now; `null` removes the expiry (this also revives an expired link).
 Returns the updated link object.
 

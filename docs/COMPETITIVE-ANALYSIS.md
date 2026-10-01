@@ -26,9 +26,9 @@ claims, not measurements. Nothing here was benchmarked.
 | Custom slugs, expiry | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
 | Click analytics (time, referrer) | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
 | Geo / device / browser breakdown | ✔ | ◐ | ✔ | ✔ | ✔ | ✘ |
-| Bot filtering | ✔ | — | — | — | — | **✘** |
+| Bot filtering | ✔ | — | — | — | — | ✔ |
 | Max visits per link | ✔ | — | — | — | — | ✘ |
-| Tags / search | ✔ | — | — | ✔ | — | ✘ |
+| Tags / search | ✔ | — | — | ✔ | — | ✔ |
 | Password-protected links | — | plugin | ✔ | ✔ | — | ✘ |
 | Device-targeted redirects | ✔ | — | — | ✔ | — | ✘ |
 | Custom / multiple domains | ✔ | ✘ | ✔ | ✔ | ◐ | ✘ |

@@ -12,6 +12,7 @@ from .domain import (
     ValidationError,
     generate_slug,
     validate_slug,
+    validate_tags,
     validate_ttl,
     validate_url,
 )
@@ -26,37 +27,45 @@ class LinkService:
         self.storage = storage
         self.clock = clock
 
-    def create(self, url: object, slug: object = None, ttl_seconds: object = None) -> Link:
+    def create(self, url: object, slug: object = None, ttl_seconds: object = None,
+               tags: object = None) -> Link:
         url = validate_url(url)
         ttl = validate_ttl(ttl_seconds)
+        tag_list = validate_tags(tags)
         now = self.clock()
         expires_at = now + ttl if ttl else None
 
         if slug not in (None, ""):
-            return self.storage.create_link(validate_slug(slug), url, now, expires_at)
+            return self.storage.create_link(validate_slug(slug), url, now, expires_at, tag_list)
 
         for length in (7, 7, 7, 8, 9):  # collisions are rare; widen if they keep happening
             try:
-                return self.storage.create_link(generate_slug(length), url, now, expires_at)
+                return self.storage.create_link(generate_slug(length), url, now, expires_at, tag_list)
             except Conflict:
                 continue
         raise RuntimeError("could not allocate a unique slug")
 
     def update(self, slug: str, changes: dict) -> Link:
-        """Edit a link. Only `url` and `ttl_seconds` may change; the slug is permanent.
+        """Edit a link. Only `url`, `ttl_seconds` and `tags` may change; the slug is permanent.
 
         `ttl_seconds` restarts the countdown from now; `None` removes the expiry.
+        `tags` replaces the whole tag list.
         """
-        unknown = set(changes) - {"url", "ttl_seconds"}
+        unknown = set(changes) - {"url", "ttl_seconds", "tags"}
         if unknown:
             raise ValidationError(f"cannot change: {', '.join(sorted(unknown))}")
         if not changes:
-            raise ValidationError("nothing to update (send url and/or ttl_seconds)")
+            raise ValidationError("nothing to update (send url, ttl_seconds and/or tags)")
         self.get(slug)  # 404 before validating
-        url = validate_url(changes["url"]) if "url" in changes else None
-        set_expiry = "ttl_seconds" in changes
-        ttl = validate_ttl(changes.get("ttl_seconds"))
-        self.storage.update_link(slug, url, self.clock() + ttl if ttl else None, set_expiry)
+        update: dict = {}
+        if "url" in changes:
+            update["url"] = validate_url(changes["url"])
+        if "ttl_seconds" in changes:
+            ttl = validate_ttl(changes["ttl_seconds"])
+            update["expires_at"] = self.clock() + ttl if ttl else None
+        if "tags" in changes:
+            update["tags"] = validate_tags(changes["tags"])
+        self.storage.update_link(slug, update)
         return self.get(slug)
 
     def export_clicks(self, slug: str) -> list[tuple[int, str | None, str | None, bool]]:
@@ -68,9 +77,11 @@ class LinkService:
             raise NotFound(slug)
         return link
 
-    def list(self, limit: int = 50, offset: int = 0) -> tuple[list[Link], int]:
+    def list(self, limit: int = 50, offset: int = 0, tag: str | None = None,
+             q: str | None = None) -> tuple[list[Link], int]:
         limit = max(1, min(limit, 200))
-        return self.storage.list_links(limit, max(0, offset)), self.storage.count_links()
+        tag = tag.strip().lower() if tag else None
+        return self.storage.list_links(limit, max(0, offset), tag, q), self.storage.count_links(tag, q)
 
     def delete(self, slug: str) -> None:
         if not self.storage.delete_link(slug):

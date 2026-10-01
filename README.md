@@ -9,6 +9,7 @@ file, **zero dependencies** (Python 3.10+ standard library only).
 - Optional expiry (`ttl_seconds`) — expired links answer `410 Gone`
 - Click analytics: total, clicks per day, top referrers
 - JSON API protected by a bearer token, plus a small web UI at `/`
+- Tags and search
 - Bot-filtered analytics (crawlers and link previews don't inflate clicks)
 - QR code per link (SVG, no dependencies)
 - Edit a link's target or expiry; export raw clicks as CSV
@@ -85,7 +86,7 @@ Status codes: `400` validation, `401` bad token, `404` unknown, `409` slug taken
 ## Development
 
 ```bash
-make test          # 53 tests: unit + end-to-end (server, SDK and CLI over real HTTP)
+make test          # 66 tests: unit + end-to-end (server, SDK and CLI over real HTTP)
 ```
 
 Layout:
