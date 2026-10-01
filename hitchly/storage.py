@@ -8,23 +8,28 @@ from typing import Iterator
 
 from .domain import Conflict, Link
 
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS links (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    slug       TEXT NOT NULL UNIQUE,
-    url        TEXT NOT NULL,
-    created_at INTEGER NOT NULL,
-    expires_at INTEGER
-);
-CREATE TABLE IF NOT EXISTS clicks (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    link_id    INTEGER NOT NULL REFERENCES links(id) ON DELETE CASCADE,
-    ts         INTEGER NOT NULL,
-    referrer   TEXT,
-    user_agent TEXT
-);
-CREATE INDEX IF NOT EXISTS idx_clicks_link_ts ON clicks(link_id, ts);
-"""
+# Ordered, append-only. Entry i upgrades a database from user_version i to i+1.
+# Never edit a released migration; add a new one. Entry 0 is idempotent so it also
+# adopts databases created before migrations existed (user_version 0 with tables).
+MIGRATIONS = [
+    """
+    CREATE TABLE IF NOT EXISTS links (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        slug       TEXT NOT NULL UNIQUE,
+        url        TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        expires_at INTEGER
+    );
+    CREATE TABLE IF NOT EXISTS clicks (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        link_id    INTEGER NOT NULL REFERENCES links(id) ON DELETE CASCADE,
+        ts         INTEGER NOT NULL,
+        referrer   TEXT,
+        user_agent TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_clicks_link_ts ON clicks(link_id, ts);
+    """,
+]
 
 _LINK_SELECT = """
 SELECT l.id, l.slug, l.url, l.created_at, l.expires_at,
@@ -42,8 +47,27 @@ class Storage:
         self.path = path
         # An in-memory database exists per connection, so share a single one.
         self._shared = sqlite3.connect(":memory:", check_same_thread=False) if path == ":memory:" else None
+        self._migrate()
+
+    def _migrate(self) -> None:
+        conn = self._shared or sqlite3.connect(self.path, timeout=10, isolation_level=None)
+        try:
+            version = conn.execute("PRAGMA user_version").fetchone()[0]
+            if version > len(MIGRATIONS):
+                raise RuntimeError(
+                    f"database schema v{version} is newer than this program (v{len(MIGRATIONS)}); upgrade Hitchly"
+                )
+            for target, sql in enumerate(MIGRATIONS[version:], start=version + 1):
+                # executescript issues its own COMMIT first; the BEGIN..COMMIT makes each step atomic
+                conn.executescript(f"BEGIN IMMEDIATE;\n{sql}\nPRAGMA user_version = {target};\nCOMMIT;")
+        finally:
+            if not self._shared:
+                conn.close()
+
+    @property
+    def schema_version(self) -> int:
         with self._conn() as conn:
-            conn.executescript(SCHEMA)
+            return conn.execute("PRAGMA user_version").fetchone()[0]
 
     @contextmanager
     def _conn(self) -> Iterator[sqlite3.Connection]:
