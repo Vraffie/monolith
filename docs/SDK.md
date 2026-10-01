@@ -1,0 +1,39 @@
+# Python SDK (`linkly_client`)
+
+Zero-dependency client used by `linklyctl`. Python 3.10+.
+
+```python
+from linkly_client import Linkly, LinklyError
+
+api = Linkly("http://localhost:8080", token="...", timeout=10)
+
+link = api.create("https://example.com/docs", slug="docs", ttl_seconds=3600)
+print(link["short_url"])
+
+api.update("docs", url="https://example.com/docs/v2")   # change target
+api.update("docs", ttl_seconds=None)                     # remove expiry (omit the argument to leave it alone)
+
+for l in api.iter_links():                               # pages through every link
+    print(l["slug"], l["clicks"])
+
+print(api.stats("docs", days=30)["clicks_per_day"])
+csv_text = api.clicks_csv("docs")
+api.delete("docs")
+
+try:
+    api.get("missing")
+except LinklyError as e:
+    print(e.status, e)                                   # 404 not found
+```
+
+| Method | Endpoint |
+|--------|----------|
+| `create(url, slug=None, ttl_seconds=None)` | `POST /api/links` |
+| `get(slug)` · `list(limit, offset)` · `iter_links(page_size)` | `GET /api/links…` |
+| `update(slug, url=None, ttl_seconds=…)` | `PATCH /api/links/{slug}` |
+| `delete(slug)` | `DELETE /api/links/{slug}` |
+| `stats(slug, days)` · `clicks_csv(slug)` | stats / `clicks.csv` |
+| `metrics()` · `health()` | `/metrics`, `/health` |
+
+Failures raise `LinklyError` with `.status` (HTTP code, or `None` when the server is unreachable).
+Redirects are never followed, so the client can't be bounced to another host with your token.
