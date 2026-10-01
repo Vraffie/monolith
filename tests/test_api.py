@@ -1,6 +1,7 @@
 """End-to-end tests against a real server on an ephemeral port."""
 
 import http.client
+import os
 import json
 import threading
 import unittest
@@ -366,3 +367,92 @@ class ProbeApiTests(unittest.TestCase):
             self.assertEqual(codes, [200, 200, 200, 429])
         finally:
             srv.shutdown(); srv.server_close()
+
+
+class AdminApiTests(unittest.TestCase):
+    """Bulk create, overview, purge and backup."""
+
+    @classmethod
+    def setUpClass(cls):
+        import tempfile
+        cls.now = 1_700_000_000
+        cls.tmp = tempfile.TemporaryDirectory()
+        path = os.path.join(cls.tmp.name, "admin.db")
+        cfg = Config(host="127.0.0.1", port=0, db_path=path, token=TOKEN, auth_fail_limit=1000, create_limit=0)
+        cls.server = create_server(LinkService(Storage(path), clock=lambda: cls.now), cfg)
+        threading.Thread(target=cls.server.serve_forever, daemon=True).start()
+        cls.port = cls.server.server_address[1]
+        mem = create_server(LinkService(Storage(":memory:")), Config(host="127.0.0.1", port=0, db_path=":memory:", token=TOKEN))
+        threading.Thread(target=mem.serve_forever, daemon=True).start()
+        cls.mem = mem
+
+    @classmethod
+    def tearDownClass(cls):
+        for s in (cls.server, cls.mem):
+            s.shutdown(); s.server_close()
+        cls.tmp.cleanup()
+
+    def call(self, method, path, body=None, token=TOKEN, srv=None):
+        c = http.client.HTTPConnection("127.0.0.1", (srv or self.server).server_address[1], timeout=10)
+        c.request(method, path, json.dumps(body) if body is not None else None, {"Authorization": f"Bearer {token}"} if token else {})
+        r = c.getresponse()
+        raw = r.read()
+        c.close()
+        ctype = r.getheader("Content-Type", "")
+        return r.status, (json.loads(raw) if raw and ctype.startswith("application/json") else raw), r
+
+    def test_bulk_create_partial_success(self):
+        status, body, _ = self.call("POST", "/api/links/bulk", {"links": [
+            {"url": "https://a.com/1", "slug": "bulk-1", "tags": ["x"]},
+            {"url": "ftp://bad"},
+            {"url": "https://a.com/2", "slug": "bulk-1"},  # duplicate of the first
+            {"url": "https://a.com/3", "password": "nope-here"},
+            "not an object",
+            {"url": "https://a.com/4", "ttl_seconds": 60, "max_visits": 3},
+        ]})
+        self.assertEqual(status, 200)
+        self.assertEqual((body["created"], body["failed"]), (2, 4))
+        r = {x["index"]: x for x in body["results"]}
+        self.assertEqual(r[0]["link"]["tags"], ["x"])
+        self.assertEqual((r[1]["status"], r[2]["status"], r[2]["error"]), (400, 409, "slug already in use"))
+        self.assertIn("passwords are not supported", r[3]["error"])
+        self.assertEqual(r[5]["link"]["max_visits"], 3)
+        self.assertEqual(self.call("GET", "/api/links/bulk-1")[1]["url"], "https://a.com/1")
+
+    def test_bulk_limits_and_auth(self):
+        self.assertEqual(self.call("POST", "/api/links/bulk", {"links": []})[0], 400)
+        self.assertEqual(self.call("POST", "/api/links/bulk", {"links": "x"})[0], 400)
+        self.assertEqual(self.call("POST", "/api/links/bulk", {"links": [{"url": "https://a.com"}] * 501})[0], 400)
+        self.assertEqual(self.call("POST", "/api/links/bulk", {"links": [{"url": "https://a.com"}]}, token=None)[0], 401)
+        big = {"links": [{"url": f"https://example.com/{i}/" + "p" * 1500} for i in range(500)]}  # ~0.8 MB: over 8 KiB, under 1 MiB
+        status, body, _ = self.call("POST", "/api/links/bulk", big)
+        self.assertEqual((status, body["created"] + body["failed"]), (200, 500))
+
+    def test_overview_purge_and_backup(self):
+        self.call("POST", "/api/links", {"url": "https://a.com", "slug": "ov-live"})
+        self.call("POST", "/api/links", {"url": "https://a.com", "slug": "ov-short", "ttl_seconds": 10})
+        type(self).now += 20
+        _, ov, _ = self.call("GET", "/api/overview")
+        self.assertGreaterEqual(ov["expired_links"], 1)
+        self.assertEqual(set(ov) >= {"links", "clicks", "bot_clicks", "expired_links", "version", "schema_version"}, True)
+        self.assertEqual(self.call("GET", "/api/overview", token=None)[0], 401)
+        status, body, _ = self.call("POST", "/api/purge", {})
+        self.assertEqual((status, body["removed"] >= 1), (200, True))
+        self.assertEqual(self.call("GET", "/api/links/ov-short")[0], 404)
+        self.assertEqual(self.call("GET", "/api/links/ov-live")[0], 200)
+        self.assertEqual(self.call("POST", "/api/purge", {}, token=None)[0], 401)
+        # backup: a consistent, restorable SQLite file
+        status, data, r = self.call("GET", "/api/backup")
+        self.assertEqual(status, 200)
+        self.assertIn("attachment", r.getheader("Content-Disposition"))
+        self.assertTrue(data.startswith(b"SQLite format 3"))
+        import sqlite3
+        restored = os.path.join(self.tmp.name, "restored.db")
+        with open(restored, "wb") as f:
+            f.write(data)
+        db = sqlite3.connect(restored)
+        self.assertEqual(db.execute("PRAGMA integrity_check").fetchone()[0], "ok")
+        self.assertIsNotNone(db.execute("SELECT 1 FROM links WHERE slug = 'ov-live'").fetchone())
+        db.close()
+        self.assertEqual(self.call("GET", "/api/backup", token=None)[0], 401)
+        self.assertEqual(self.call("GET", "/api/backup", srv=self.mem)[0], 400)  # nothing to copy for an in-memory DB

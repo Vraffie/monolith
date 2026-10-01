@@ -113,6 +113,15 @@ Cells beginning with `= + - @` are prefixed with `'` so spreadsheets don't evalu
 ### `GET /api/links/{slug}/qr.svg?scale=8` — QR code
 `image/svg+xml` QR code (error correction M, 4-module quiet zone) encoding the short URL. `scale` is pixels per module.
 
+### `POST /api/links/bulk` — create many links
+Body `{"links": [{"url", "slug"?, "ttl_seconds"?, "tags"?, "max_visits"?}, …]}`, 1-500 items, body up to 1 MiB. Items are independent; the response is
+`{"created": n, "failed": m, "results": [{"index": i, "link": {...}} | {"index": i, "error": "...", "status": 400|409}]}` (HTTP 200 even when some items fail).
+`password` is rejected per item. Not subject to `HITCHLY_CREATE_LIMIT` (which guards single creates).
+
+### `GET /api/overview` · `POST /api/purge` · `GET /api/backup`
+`overview` returns totals (`links`, `expired_links`, `clicks`, `bot_clicks`), `version`, `schema_version`. `purge` deletes expired links (`{"removed": n}`).
+`backup` downloads a consistent SQLite copy (`application/vnd.sqlite3`); it contains password hashes and every click, so treat it as a secret. File-backed databases only.
+
 ### `POST /api/tools/trace` — follow a URL's redirects
 Body `{"url": "..."}`. The *server* fetches the URL (manually following redirects) and returns
 `{"ok": bool, "hops": [{"url","status","ip","ms","location"}], "final": {"url","status","content_type","title","description"}, "error": null|string}`.

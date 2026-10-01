@@ -7,6 +7,8 @@ from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import hmac
 import io
+import os
+import tempfile
 import json
 from datetime import datetime, timezone
 import re
@@ -22,6 +24,8 @@ from .domain import Conflict, Link, NotFound, PasswordRequired, ValidationError
 from .service import LinkService
 
 MAX_BODY = 8 * 1024
+MAX_BULK_BODY = 1024 * 1024
+MAX_BULK_ITEMS = 500
 SLUG_PATH = re.compile(r"^/([A-Za-z0-9_-]{1,64})$")
 API_LINK = re.compile(r"^/api/links/([A-Za-z0-9_-]{1,64})$")
 API_CLICKS = re.compile(r"^/api/links/([A-Za-z0-9_-]{1,64})/clicks\.csv$")
@@ -100,12 +104,12 @@ def make_handler(service: LinkService, config: Config, prober: Prober | None = N
             supplied = header[7:] if header.startswith("Bearer ") else ""
             return hmac.compare_digest(supplied.encode(), config.token.encode())
 
-        def _read_json(self) -> dict:
+        def _read_json(self, max_body: int = MAX_BODY) -> dict:
             try:
                 length = int(self.headers.get("Content-Length", "0"))
             except ValueError:
                 raise ValidationError("invalid Content-Length") from None
-            if length > MAX_BODY:
+            if length > max_body:
                 self.close_connection = True  # body left unread; don't parse it as the next request
                 raise ValidationError("request body too large")
             try:
@@ -209,6 +213,13 @@ def make_handler(service: LinkService, config: Config, prober: Prober | None = N
                     f"hitchly_bot_clicks_total {t['bot_clicks']}\n"
                 ).encode()
                 return self._send(200, body, "text/plain; version=0.0.4; charset=utf-8")
+            if path == "/api/overview":
+                if not self._require_auth():
+                    return
+                return self._json(200, {**service.totals(), "version": __version__, "schema_version": service.storage.schema_version,
+                                        "probes_allow_private": config.probe_allow_private})
+            if path == "/api/backup":
+                return self._backup()
             if path == "/api/links":
                 if not self._require_auth():
                     return
@@ -344,8 +355,60 @@ def make_handler(service: LinkService, config: Config, prober: Prober | None = N
             with ThreadPoolExecutor(max_workers=8) as pool:
                 self._json(200, {"results": list(pool.map(run, found))})
 
+        def _bulk_create(self):
+            if not self._require_auth():
+                return
+            items = self._read_json(MAX_BULK_BODY).get("links")
+            if not isinstance(items, list) or not 1 <= len(items) <= MAX_BULK_ITEMS:
+                raise ValidationError(f"links must be a list of 1-{MAX_BULK_ITEMS} objects")
+            # Not subject to HITCHLY_CREATE_LIMIT (that guards single creates): bulk is token-gated and capped per request.
+            results, created = [], 0
+            for i, item in enumerate(items):
+                try:
+                    if not isinstance(item, dict):
+                        raise ValidationError("each link must be an object")
+                    if "password" in item:
+                        raise ValidationError("passwords are not supported in bulk creation (set them per link)")
+                    link = service.create(item.get("url"), item.get("slug"), item.get("ttl_seconds"), item.get("tags"),
+                                          item.get("max_visits"))
+                    results.append({"index": i, "link": self._link_json(link)})
+                    created += 1
+                except ValidationError as e:
+                    results.append({"index": i, "error": str(e), "status": 400})
+                except Conflict:
+                    results.append({"index": i, "error": "slug already in use", "status": 409})
+            self._json(200, {"created": created, "failed": len(items) - created, "results": results})
+
+        def _purge(self):
+            if not self._require_auth():
+                return
+            self._read_json()  # drain the body (may be empty)
+            self._json(200, {"removed": service.purge_expired()})
+
+        def _backup(self):
+            if not self._require_auth():
+                return
+            fd, tmp = tempfile.mkstemp(suffix=".db")
+            os.close(fd)
+            try:
+                os.unlink(tmp)  # sqlite creates it fresh
+                service.storage.backup(tmp)
+                with open(tmp, "rb") as f:
+                    data = f.read()
+            except RuntimeError as e:  # e.g. in-memory database
+                raise ValidationError(str(e)) from None
+            finally:
+                if os.path.exists(tmp):
+                    os.unlink(tmp)
+            self._send(200, data, "application/vnd.sqlite3",
+                       {"Content-Disposition": 'attachment; filename="hitchly-backup.db"', "Cache-Control": "no-store"})
+
         def _post(self):
             path = urlsplit(self.path).path
+            if path == "/api/links/bulk":
+                return self._bulk_create()
+            if path == "/api/purge":
+                return self._purge()
             if path == "/api/tools/trace":
                 return self._trace()
             if path == "/api/links/check":

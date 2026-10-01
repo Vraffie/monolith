@@ -110,6 +110,11 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("qr", help="write a link's QR code as SVG (stdout, or -o FILE)")
     s.add_argument("slug"); s.add_argument("-o", "--output")
 
+    sub.add_parser("overview", help="server totals: links, expired, visits, bot visits, version")
+    sub.add_parser("purge", help="delete expired links on the server")
+    s = sub.add_parser("backup", help="download a consistent copy of the server's database")
+    s.add_argument("file")
+
     s = sub.add_parser("trace", help="follow a URL's redirects from the server (shows each hop and the final page title)")
     s.add_argument("target")
 
@@ -238,6 +243,14 @@ def run(args, api: Hitchly, out, err, confirm=input) -> int:
             print(f"wrote {args.output}", file=out)
         else:
             out.write(svg)
+    elif cmd == "overview":
+        o = api.overview()
+        print(f"Hitchly {o['version']} (schema v{o['schema_version']})", file=out)
+        print(f"links: {o['links']} ({o['expired_links']} expired)   visits: {o['clicks']} (+{o['bot_clicks']} bot)", file=out)
+    elif cmd == "purge":
+        print(f"removed {api.purge()} expired link(s)", file=out)
+    elif cmd == "backup":
+        print(f"wrote {args.file} ({api.backup(args.file)} bytes)", file=out)
     elif cmd == "trace":
         r = api.trace(args.target)
         for i, hop in enumerate(r["hops"], start=1):
@@ -263,17 +276,37 @@ def run(args, api: Hitchly, out, err, confirm=input) -> int:
                   f"Use --url-col to name it.", file=err)
             return 2
         created = skipped = failed = 0
+        batch, numbers = [], []  # payloads waiting to be sent, and their row numbers in the file
+
+        def flush():
+            nonlocal created, skipped, failed
+            if not batch:
+                return
+            try:
+                res = api.bulk_create(batch)["results"]
+            except HitchlyError as e:
+                failed += len(batch)
+                print(f"rows {numbers[0]}-{numbers[-1]}: {e}", file=err)
+            else:
+                for item in res:
+                    if "link" in item:
+                        created += 1
+                    elif args.skip_existing and item.get("status") == 409:
+                        skipped += 1
+                    else:
+                        failed += 1
+                        print(f"row {numbers[item['index']]}: {item['error']}", file=err)
+            batch.clear(); numbers.clear()
+
         for n, row in enumerate(rows, start=1):
             url = (row.get(cols["url"]) or "").strip() if isinstance(row.get(cols["url"]), (str, type(None))) else ""
             slug = row.get(cols["slug"]) or None
             if slug and args.slug_last_segment:
                 slug = str(slug).rstrip("/").rsplit("/", 1)[-1] or None
-            ttl = row.get(cols["ttl_seconds"])
-            cap = row.get(cols["max_visits"])
+            ttl, cap = row.get(cols["ttl_seconds"]), row.get(cols["max_visits"])
             raw_tags = row.get(cols["tags"]) or []
             if isinstance(raw_tags, str):
                 raw_tags = [t for t in re.split(r"[;,]", raw_tags) if t.strip()]
-            tags = [*raw_tags, *args.default_tag]
             if args.dry_run:
                 if url:
                     created += 1
@@ -282,15 +315,18 @@ def run(args, api: Hitchly, out, err, confirm=input) -> int:
                     print(f"row {n}: missing '{cols['url']}'", file=err)
                 continue
             try:
-                api.create(url, slug, int(ttl) if ttl not in (None, "") else None, tags,
-                           int(cap) if cap not in (None, "") else None)
-                created += 1
-            except (HitchlyError, ValueError) as e:
-                if args.skip_existing and isinstance(e, HitchlyError) and e.status == 409:
-                    skipped += 1
-                else:
-                    failed += 1
-                    print(f"row {n}: {e}", file=err)
+                item = {"url": url, "slug": slug, "tags": [*raw_tags, *args.default_tag],
+                        "ttl_seconds": int(ttl) if ttl not in (None, "") else None,
+                        "max_visits": int(cap) if cap not in (None, "") else None}
+            except ValueError as e:
+                failed += 1
+                print(f"row {n}: {e}", file=err)
+                continue
+            batch.append({k: v for k, v in item.items() if v not in (None, [])} | {"url": url})
+            numbers.append(n)
+            if len(batch) >= 200:
+                flush()
+        flush()
         if args.dry_run:
             print(f"dry run: {created} would be sent, {failed} rows have no URL", file=out)
         else:

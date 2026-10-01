@@ -156,6 +156,25 @@ class CliTests(unittest.TestCase):
         self.ctl("edit", "cli-cap", "--no-max-visits")
         self.assertIsNone(json.loads(self.ctl("get", "cli-cap")[1])["max_visits"])
 
+    def test_import_more_rows_than_the_creation_limit(self):
+        # The server allows 60 single creations per minute; bulk import must not be throttled by that.
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "many.csv")
+            with open(path, "w") as f:
+                f.write("url,slug\n" + "".join(f"https://example.com/m{i},many-{i:04d}\n" for i in range(450)))
+            code, out, err = self.ctl("import", path)
+            self.assertEqual((code, "450 created, 0 skipped, 0 failed" in out), (0, True), out + err)  # 3 bulk batches
+            self.assertEqual(self.ctl("import", path, "--skip-existing")[1].strip(), "imported: 0 created, 450 skipped, 0 failed")
+
+    def test_overview_purge_backup_commands(self):
+        code, out, _ = self.ctl("overview")
+        self.assertEqual(code, 0)
+        self.assertIn("Hitchly 1.1.0", out)
+        self.assertIn("removed 0 expired link(s)", self.ctl("purge")[1])
+        code, _, err = self.ctl("backup", os.path.join(tempfile.gettempdir(), "x.db"))
+        self.assertEqual(code, 1)  # the test server uses an in-memory DB, which cannot be backed up
+        self.assertIn("in-memory", err)
+
     def test_trace_refuses_internal_address(self):
         code, out, _ = self.ctl("trace", "http://127.0.0.1:1/")
         self.assertEqual(code, 1)

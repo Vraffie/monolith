@@ -34,6 +34,7 @@ except HitchlyError as e:
 | `update(slug, url=None, ttl_seconds=…, tags=None, max_visits=…, password=…)` | `PATCH /api/links/{slug}` |
 | `delete(slug)` | `DELETE /api/links/{slug}` |
 | `stats(slug, days)` · `clicks_csv(slug)` · `qr_svg(slug, scale)` | stats / `clicks.csv` / `qr.svg` |
+| `bulk_create(links)` · `overview()` · `purge()` · `backup(dest)` | `POST /api/links/bulk` · `GET /api/overview` · `POST /api/purge` · `GET /api/backup` |
 | `trace(url)` · `check_links(slugs)` | `POST /api/tools/trace` · `POST /api/links/check` |
 | `metrics()` · `health()` | `/metrics`, `/health` |
 

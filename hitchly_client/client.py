@@ -118,6 +118,25 @@ class Hitchly:
         _, raw, _ = self._request("GET", f"/api/links/{urllib.parse.quote(slug)}/qr.svg?scale={scale}")
         return raw.decode()
 
+    def bulk_create(self, links: list[dict]) -> dict:
+        """Create up to 500 links in one request. Returns {"created", "failed", "results": [{"index", "link"|"error","status"}]}.
+        Items are independent: failures don't stop the others. Passwords are not accepted in bulk."""
+        return self._json("POST", "/api/links/bulk", {"links": links})
+
+    def overview(self) -> dict:
+        return self._json("GET", "/api/overview")
+
+    def purge(self) -> int:
+        """Delete expired links; returns how many were removed."""
+        return self._json("POST", "/api/purge", {})["removed"]
+
+    def backup(self, dest: str) -> int:
+        """Download a consistent copy of the server's database to `dest`; returns the size in bytes."""
+        _, raw, _ = self._request("GET", "/api/backup")
+        with open(dest, "wb") as f:
+            f.write(raw)
+        return len(raw)
+
     def trace(self, url: str) -> dict:
         """Ask the server to follow a URL's redirects (SSRF-guarded). Returns hops and the final page."""
         return self._json("POST", "/api/tools/trace", {"url": url})
