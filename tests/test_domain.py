@@ -1,6 +1,6 @@
 import unittest
 
-from shortener.domain import ValidationError, generate_slug, validate_slug, validate_ttl, validate_url
+from hitchly.domain import ValidationError, generate_slug, validate_slug, validate_ttl, validate_url
 
 
 class UrlTests(unittest.TestCase):

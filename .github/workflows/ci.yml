@@ -18,11 +18,11 @@ jobs:
       - name: Package installs and exposes both commands
         run: |
           pip install .
-          linklyctl --help >/dev/null
-          python -c "import shortener, linkly_client, linklyctl"
+          hitch --help >/dev/null
+          python -c "import hitchly, hitchly_client, hitch"
 
   docker:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: docker build -t linkly .
+      - run: docker build -t hitchly .

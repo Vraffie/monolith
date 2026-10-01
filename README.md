@@ -1,4 +1,4 @@
-# Linkly
+# Hitchly
 
 A small, self-hosted URL shortener with click analytics. One process, one SQLite
 file, **zero dependencies** (Python 3.10+ standard library only).
@@ -12,13 +12,13 @@ file, **zero dependencies** (Python 3.10+ standard library only).
 - Edit a link's target or expiry; export raw clicks as CSV
 - `purge` and online `backup` commands (cron-friendly), Prometheus `/metrics`
 - Brute-force protection on the token
-- **Ecosystem:** [Python SDK](docs/SDK.md), [`linklyctl` CLI](docs/CLI.md) (bulk import/export, dead-link checker), Docker, CI
+- **Ecosystem:** [Python SDK](docs/SDK.md), [`hitch` CLI](docs/CLI.md) (bulk import/export, dead-link checker), Docker, CI
 
 ## Quick start
 
 ```bash
-make run                                   # or: python3 -m shortener serve
-# LINKLY_TOKEN not set -> a token is generated and printed on startup
+make run                                   # or: python3 -m hitchly serve
+# HITCHLY_TOKEN not set -> a token is generated and printed on startup
 ```
 
 Open <http://127.0.0.1:8080/>, paste the token, shorten a link.
@@ -26,23 +26,23 @@ Open <http://127.0.0.1:8080/>, paste the token, shorten a link.
 Or via the API:
 
 ```bash
-export LINKLY_TOKEN=change-me
-python3 -m shortener serve &
+export HITCHLY_TOKEN=change-me
+python3 -m hitchly serve &
 
-curl -X POST localhost:8080/api/links -H "Authorization: Bearer $LINKLY_TOKEN" \
+curl -X POST localhost:8080/api/links -H "Authorization: Bearer $HITCHLY_TOKEN" \
      -d '{"url":"https://example.com/long/path","slug":"docs","ttl_seconds":86400}'
 curl -i localhost:8080/docs                # 302 -> https://example.com/long/path
-curl localhost:8080/api/links/docs/stats -H "Authorization: Bearer $LINKLY_TOKEN"
+curl localhost:8080/api/links/docs/stats -H "Authorization: Bearer $HITCHLY_TOKEN"
 ```
 
 ## Command-line client
 
 ```bash
-export LINKLY_TOKEN=change-me
-linklyctl new https://example.com/long/path --slug docs --ttl 7d
-linklyctl ls
-linklyctl stats docs
-linklyctl check          # which targets are dead?
+export HITCHLY_TOKEN=change-me
+hitch new https://example.com/long/path --slug docs --ttl 7d
+hitch ls
+hitch stats docs
+hitch check          # which targets are dead?
 ```
 More in [docs/CLI.md](docs/CLI.md); programmatic use in [docs/SDK.md](docs/SDK.md).
 
@@ -50,14 +50,14 @@ More in [docs/CLI.md](docs/CLI.md); programmatic use in [docs/SDK.md](docs/SDK.m
 
 | Variable          | Default      | Purpose                                                |
 |-------------------|--------------|--------------------------------------------------------|
-| `LINKLY_TOKEN`    | generated    | Bearer token for the API/UI. **Set it in production.** |
-| `LINKLY_HOST`     | `127.0.0.1`  | Bind address                                           |
-| `LINKLY_PORT`     | `8080`       | Port                                                   |
-| `LINKLY_DB`       | `linkly.db`  | SQLite file path                                       |
-| `LINKLY_BASE_URL` | request Host | Public origin used in returned `short_url`s            |
-| `LINKLY_AUTH_FAIL_LIMIT` | `10`  | Failed auth attempts per client/minute before `429`    |
-| `LINKLY_CREATE_LIMIT` | `60`      | Link creations per client/minute before `429` (0 = off)      |
-| `LINKLY_TRUST_PROXY` | off       | Use `X-Forwarded-For` for client IP (only behind your proxy) |
+| `HITCHLY_TOKEN`    | generated    | Bearer token for the API/UI. **Set it in production.** |
+| `HITCHLY_HOST`     | `127.0.0.1`  | Bind address                                           |
+| `HITCHLY_PORT`     | `8080`       | Port                                                   |
+| `HITCHLY_DB`       | `hitchly.db`  | SQLite file path                                       |
+| `HITCHLY_BASE_URL` | request Host | Public origin used in returned `short_url`s            |
+| `HITCHLY_AUTH_FAIL_LIMIT` | `10`  | Failed auth attempts per client/minute before `429`    |
+| `HITCHLY_CREATE_LIMIT` | `60`      | Link creations per client/minute before `429` (0 = off)      |
+| `HITCHLY_TRUST_PROXY` | off       | Use `X-Forwarded-For` for client IP (only behind your proxy) |
 
 ## API
 
@@ -89,7 +89,7 @@ make test          # 43 tests: unit + end-to-end (server, SDK and CLI over real 
 Layout:
 
 ```
-shortener/
+hitchly/
   domain.py    pure rules: validation, slug generation, errors   (no I/O)
   storage.py   SQLite repository — the only place with SQL
   service.py   use-cases; injectable clock for deterministic tests
@@ -97,8 +97,8 @@ shortener/
   ratelimit.py sliding-window limiter (failed-auth lockout)
   config.py    env-var configuration
   ui.html      single-file admin UI (no build step)
-linkly_client/ Python SDK over the HTTP API
-linklyctl/     CLI built on the SDK
+hitchly_client/ Python SDK over the HTTP API
+hitchctl/     CLI built on the SDK
 deploy/        Prometheus config; Dockerfile + docker-compose.yml at the root
 tests/         unit + integration tests
 docs/          product brief, architecture, ADRs
@@ -112,7 +112,7 @@ docs/          product brief, architecture, ADRs
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Layers, flows, data model, security, ADR index |
 | [docs/API.md](docs/API.md) | Full endpoint reference |
 | [docs/ECOSYSTEM.md](docs/ECOSYSTEM.md) | How server, SDK, CLI and ops tools fit together |
-| [docs/CLI.md](docs/CLI.md) · [docs/SDK.md](docs/SDK.md) | `linklyctl` and Python client |
+| [docs/CLI.md](docs/CLI.md) · [docs/SDK.md](docs/SDK.md) | `hitch` and Python client |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | systemd, Docker, nginx, backups |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Ground rules, commit style, releasing |
 | [CHANGELOG.md](CHANGELOG.md) | Release history |

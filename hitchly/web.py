@@ -44,7 +44,7 @@ def make_handler(service: LinkService, config: Config):
     creations = RateLimiter(config.create_limit, 60) if config.create_limit > 0 else None
 
     class Handler(BaseHTTPRequestHandler):
-        server_version = f"Linkly/{__version__}"
+        server_version = f"Hitchly/{__version__}"
         protocol_version = "HTTP/1.1"
 
         # ---- helpers -------------------------------------------------
@@ -159,7 +159,7 @@ def make_handler(service: LinkService, config: Config):
             path, qs = parts.path, parse_qs(parts.query)
 
             if path == "/":
-                html = resources.files("shortener").joinpath("ui.html").read_bytes()
+                html = resources.files("hitchly").joinpath("ui.html").read_bytes()
                 return self._send(200, html, "text/html; charset=utf-8", {"Content-Security-Policy": CSP})
             if path == "/health":
                 return self._json(200, {"status": "ok", "version": __version__})
@@ -168,13 +168,13 @@ def make_handler(service: LinkService, config: Config):
                     return
                 t = service.totals()
                 body = (
-                    "# HELP linkly_links Links currently stored.\n# TYPE linkly_links gauge\n"
-                    f"linkly_links {t['links']}\n"
-                    "# HELP linkly_links_expired Stored links past their expiry (purge to remove).\n"
-                    "# TYPE linkly_links_expired gauge\n"
-                    f"linkly_links_expired {t['expired_links']}\n"
-                    "# HELP linkly_clicks_total Recorded redirects.\n# TYPE linkly_clicks_total counter\n"
-                    f"linkly_clicks_total {t['clicks']}\n"
+                    "# HELP hitchly_links Links currently stored.\n# TYPE hitchly_links gauge\n"
+                    f"hitchly_links {t['links']}\n"
+                    "# HELP hitchly_links_expired Stored links past their expiry (purge to remove).\n"
+                    "# TYPE hitchly_links_expired gauge\n"
+                    f"hitchly_links_expired {t['expired_links']}\n"
+                    "# HELP hitchly_clicks_total Recorded redirects.\n# TYPE hitchly_clicks_total counter\n"
+                    f"hitchly_clicks_total {t['clicks']}\n"
                 ).encode()
                 return self._send(200, body, "text/plain; version=0.0.4; charset=utf-8")
             if path == "/api/links":

@@ -9,7 +9,7 @@ from typing import Iterator
 _UNSET = object()
 
 
-class LinklyError(Exception):
+class HitchlyError(Exception):
     """API or transport failure. `status` is the HTTP status, or None if unreachable."""
 
     def __init__(self, message: str, status: int | None = None) -> None:
@@ -22,7 +22,7 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-class Linkly:
+class Hitchly:
     def __init__(self, base_url: str, token: str, timeout: float = 10.0) -> None:
         self.base_url = base_url.rstrip("/")
         self.token = token
@@ -45,9 +45,9 @@ class Linkly:
                 message = json.loads(raw)["error"]
             except (ValueError, KeyError, TypeError):
                 message = raw.decode(errors="replace").strip() or e.reason
-            raise LinklyError(message, e.code) from None
+            raise HitchlyError(message, e.code) from None
         except (urllib.error.URLError, OSError) as e:
-            raise LinklyError(f"cannot reach {self.base_url}: {getattr(e, 'reason', e)}") from None
+            raise HitchlyError(f"cannot reach {self.base_url}: {getattr(e, 'reason', e)}") from None
 
     def _json(self, method: str, path: str, body: dict | None = None):
         _, raw, _ = self._request(method, path, body)

@@ -11,7 +11,7 @@ from dataclasses import dataclass
 class Config:
     host: str = "127.0.0.1"
     port: int = 8080
-    db_path: str = "linkly.db"
+    db_path: str = "hitchly.db"
     token: str = ""
     base_url: str = ""  # public origin used when building short URLs, e.g. https://go.example.com
     token_generated: bool = False
@@ -21,18 +21,18 @@ class Config:
 
     @classmethod
     def from_env(cls, env=os.environ) -> "Config":
-        token = env.get("LINKLY_TOKEN", "")
+        token = env.get("HITCHLY_TOKEN", "")
         generated = not token
         if generated:
             token = secrets.token_urlsafe(24)
         return cls(
-            host=env.get("LINKLY_HOST", "127.0.0.1"),
-            port=int(env.get("LINKLY_PORT", "8080")),
-            db_path=env.get("LINKLY_DB", "linkly.db"),
+            host=env.get("HITCHLY_HOST", "127.0.0.1"),
+            port=int(env.get("HITCHLY_PORT", "8080")),
+            db_path=env.get("HITCHLY_DB", "hitchly.db"),
             token=token,
-            base_url=env.get("LINKLY_BASE_URL", "").rstrip("/"),
+            base_url=env.get("HITCHLY_BASE_URL", "").rstrip("/"),
             token_generated=generated,
-            trust_proxy=env.get("LINKLY_TRUST_PROXY", "").lower() in ("1", "true", "yes"),
-            create_limit=int(env.get("LINKLY_CREATE_LIMIT", "60")),
-            auth_fail_limit=int(env.get("LINKLY_AUTH_FAIL_LIMIT", "10")),
+            trust_proxy=env.get("HITCHLY_TRUST_PROXY", "").lower() in ("1", "true", "yes"),
+            create_limit=int(env.get("HITCHLY_CREATE_LIMIT", "60")),
+            auth_fail_limit=int(env.get("HITCHLY_AUTH_FAIL_LIMIT", "10")),
         )

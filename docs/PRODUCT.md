@@ -25,9 +25,9 @@ Multi-user accounts, link editing, QR codes, geo/device analytics, public sign-u
 | 4 | I see click analytics | total, per-day for N days, top referrers |
 | 5 | I delete a link | link and its click history removed; later visits 404 |
 | 6 | Only I can manage links | all `/api` routes need the token; redirects are public |
-| 7 | I clean up | `python -m shortener purge` removes expired links |
+| 7 | I clean up | `python -m hitchly purge` removes expired links |
 | 8 | I fix a link without changing its URL | `PATCH` changes target/expiry; slug and click history preserved |
-| 9 | I automate and migrate | SDK + `linklyctl`: create, bulk import/export, dead-link check; exit codes usable in cron/CI |
+| 9 | I automate and migrate | SDK + `hitch`: create, bulk import/export, dead-link check; exit codes usable in cron/CI |
 | 10 | I monitor and recover | `/metrics` for Prometheus; online `backup` produces a consistent copy |
 | 11 | Guessing the token is impractical | repeated failures lock the client out (429) |
 

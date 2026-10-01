@@ -1,4 +1,4 @@
-"""linklyctl end to end: real CLI code against a real in-process server."""
+"""hitch end to end: real CLI code against a real in-process server."""
 
 import argparse
 import io
@@ -8,11 +8,11 @@ import tempfile
 import threading
 import unittest
 
-from linklyctl.cli import main, parse_duration
-from shortener.config import Config
-from shortener.service import LinkService
-from shortener.storage import Storage
-from shortener.web import create_server
+from hitchctl.cli import main, parse_duration
+from hitchly.config import Config
+from hitchly.service import LinkService
+from hitchly.storage import Storage
+from hitchly.web import create_server
 
 
 class DurationTests(unittest.TestCase):

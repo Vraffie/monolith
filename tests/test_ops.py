@@ -3,8 +3,8 @@ import sqlite3
 import tempfile
 import unittest
 
-from shortener.service import LinkService
-from shortener.storage import Storage
+from hitchly.service import LinkService
+from hitchly.storage import Storage
 
 
 class OpsTests(unittest.TestCase):

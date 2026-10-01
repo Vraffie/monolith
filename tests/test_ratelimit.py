@@ -1,6 +1,6 @@
 import unittest
 
-from shortener.ratelimit import RateLimiter
+from hitchly.ratelimit import RateLimiter
 
 
 class RateLimiterTests(unittest.TestCase):

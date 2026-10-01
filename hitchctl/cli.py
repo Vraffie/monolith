@@ -1,4 +1,4 @@
-"""linklyctl — manage a Linkly server from the shell. Built on linkly_client."""
+"""hitch — manage a Hitchly server from the shell. Built on hitchly_client."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
-from linkly_client import Linkly, LinklyError
+from hitchly_client import Hitchly, HitchlyError
 
 DURATION_RE = re.compile(r"^(\d+)([smhdw]?)$")
 UNITS = {"": 1, "s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800}
@@ -40,10 +40,10 @@ def _print_table(rows: list[list[str]], header: list[str], out) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="linklyctl", description="Manage a Linkly URL shortener.")
-    p.add_argument("--url", default=os.environ.get("LINKLY_URL", "http://127.0.0.1:8080"),
-                   help="server URL (env LINKLY_URL, default %(default)s)")
-    p.add_argument("--token", default=os.environ.get("LINKLY_TOKEN", ""), help="API token (env LINKLY_TOKEN)")
+    p = argparse.ArgumentParser(prog="hitch", description="Manage a Hitchly URL shortener.")
+    p.add_argument("--url", default=os.environ.get("HITCHLY_URL", "http://127.0.0.1:8080"),
+                   help="server URL (env HITCHLY_URL, default %(default)s)")
+    p.add_argument("--token", default=os.environ.get("HITCHLY_TOKEN", ""), help="API token (env HITCHLY_TOKEN)")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     s = sub.add_parser("new", help="shorten a URL; prints the short URL")
@@ -105,7 +105,7 @@ def probe(url: str, timeout: float) -> tuple[bool, str]:
     opener = urllib.request.build_opener(NoRedirect)
     last = "error"
     for method in ("HEAD", "GET"):
-        req = urllib.request.Request(url, method=method, headers={"User-Agent": "linklyctl-check/1.1"})
+        req = urllib.request.Request(url, method=method, headers={"User-Agent": "hitch-check/1.1"})
         try:
             with opener.open(req, timeout=timeout) as res:
                 return True, str(res.status)
@@ -121,7 +121,7 @@ def probe(url: str, timeout: float) -> tuple[bool, str]:
     return False, last
 
 
-def run(args, api: Linkly, out, err, confirm=input) -> int:
+def run(args, api: Hitchly, out, err, confirm=input) -> int:
     cmd = args.cmd
     if cmd == "new":
         print(api.create(args.target, args.slug, args.ttl)["short_url"], file=out)
@@ -176,8 +176,8 @@ def run(args, api: Linkly, out, err, confirm=input) -> int:
             try:
                 api.create(row.get("url") or "", (row.get("slug") or None), int(ttl) if ttl not in (None, "") else None)
                 created += 1
-            except (LinklyError, ValueError) as e:
-                if args.skip_existing and isinstance(e, LinklyError) and e.status == 409:
+            except (HitchlyError, ValueError) as e:
+                if args.skip_existing and isinstance(e, HitchlyError) and e.status == 409:
                     skipped += 1
                 else:
                     failed += 1
@@ -200,11 +200,11 @@ def main(argv: list[str] | None = None, out=None, err=None) -> int:
     out, err = out or sys.stdout, err or sys.stderr
     args = build_parser().parse_args(argv)
     if not args.token:
-        print("error: no API token (use --token or LINKLY_TOKEN)", file=err)
+        print("error: no API token (use --token or HITCHLY_TOKEN)", file=err)
         return 2
     try:
-        return run(args, Linkly(args.url, args.token), out, err)
-    except LinklyError as e:
+        return run(args, Hitchly(args.url, args.token), out, err)
+    except HitchlyError as e:
         print(f"error: {e}", file=err)
         return 1
     except (OSError, ValueError) as e:

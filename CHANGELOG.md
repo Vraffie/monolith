@@ -3,6 +3,12 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
+### Changed
+- **Renamed the product from Linkly to Hitchly** (a hitch is a knot that ties things together). Pre-release, so there is no compatibility layer:
+  package `shortener` → `hitchly`, `linkly_client` → `hitchly_client`, `linklyctl` → `hitchctl` (command `hitch`),
+  server command `linkly` → `hitchly`, env vars `LINKLY_*` → `HITCHLY_*`, default DB `linkly.db` → `hitchly.db`,
+  metrics `linkly_*` → `hitchly_*`.
+
 ### Added
 - Web UI: edit a link's destination and expiry.
 - Rate limit on link creation (`LINKLY_CREATE_LIMIT`, default 60/min per client).

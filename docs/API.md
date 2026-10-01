@@ -1,12 +1,12 @@
 # API reference
 
-Base URL: wherever Linkly runs, e.g. `http://127.0.0.1:8080`.
+Base URL: wherever Hitchly runs, e.g. `http://127.0.0.1:8080`.
 Bodies and responses are JSON (`Content-Type: application/json`). Request bodies are limited to 8 KiB.
 
 ## Authentication
-All `/api/*` routes require `Authorization: Bearer <LINKLY_TOKEN>`.
+All `/api/*` routes require `Authorization: Bearer <HITCHLY_TOKEN>`.
 Missing/invalid token → `401` with `WWW-Authenticate: Bearer`.
-More than `LINKLY_AUTH_FAIL_LIMIT` (default 10) failures per client per minute → `429` with `Retry-After`;
+More than `HITCHLY_AUTH_FAIL_LIMIT` (default 10) failures per client per minute → `429` with `Retry-After`;
 while locked out, even the correct token is refused.
 `GET /{slug}`, `GET /health` and `GET /` are public.
 
@@ -46,12 +46,12 @@ Timestamps are Unix seconds (UTC). `expires_at` is `null` for links that never e
 | `slug` | string | no | 3–32 chars of `A-Z a-z 0-9 _ -`; not reserved (`api`, `health`, `metrics`, `static`, `favicon.ico`, `robots.txt`, case-insensitive) |
 | `ttl_seconds` | integer | no | 1 – 315 360 000 (10 years) |
 
-Limited to `LINKLY_CREATE_LIMIT` (default 60) successful creations per client per minute, then `429`.
+Limited to `HITCHLY_CREATE_LIMIT` (default 60) successful creations per client per minute, then `429`.
 Returns `201` with the link object and `Location: /api/links/{slug}`.
 Without `slug`, a random 7-character one is generated.
 
 ```bash
-curl -X POST localhost:8080/api/links -H "Authorization: Bearer $LINKLY_TOKEN" \
+curl -X POST localhost:8080/api/links -H "Authorization: Bearer $HITCHLY_TOKEN" \
      -d '{"url":"https://example.com","slug":"docs","ttl_seconds":3600}'
 ```
 
@@ -93,7 +93,7 @@ Returns `204`. Click history is deleted with the link.
 - `410` plain text if expired (not counted); `404` if unknown.
 
 ### `GET /metrics` — Prometheus metrics (token required)
-`linkly_links`, `linkly_links_expired` (gauges) and `linkly_clicks_total` (counter), text exposition format.
+`hitchly_links`, `hitchly_links_expired` (gauges) and `hitchly_clicks_total` (counter), text exposition format.
 
 ### `GET /health` — liveness (public)
 `200 {"status":"ok","version":"1.1.0"}`

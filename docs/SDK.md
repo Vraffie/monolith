@@ -1,11 +1,11 @@
-# Python SDK (`linkly_client`)
+# Python SDK (`hitchly_client`)
 
-Zero-dependency client used by `linklyctl`. Python 3.10+.
+Zero-dependency client used by `hitch`. Python 3.10+.
 
 ```python
-from linkly_client import Linkly, LinklyError
+from hitchly_client import Hitchly, HitchlyError
 
-api = Linkly("http://localhost:8080", token="...", timeout=10)
+api = Hitchly("http://localhost:8080", token="...", timeout=10)
 
 link = api.create("https://example.com/docs", slug="docs", ttl_seconds=3600)
 print(link["short_url"])
@@ -22,7 +22,7 @@ api.delete("docs")
 
 try:
     api.get("missing")
-except LinklyError as e:
+except HitchlyError as e:
     print(e.status, e)                                   # 404 not found
 ```
 
@@ -35,5 +35,5 @@ except LinklyError as e:
 | `stats(slug, days)` · `clicks_csv(slug)` | stats / `clicks.csv` |
 | `metrics()` · `health()` | `/metrics`, `/health` |
 
-Failures raise `LinklyError` with `.status` (HTTP code, or `None` when the server is unreachable).
+Failures raise `HitchlyError` with `.status` (HTTP code, or `None` when the server is unreachable).
 Redirects are never followed, so the client can't be bounced to another host with your token.

@@ -1,14 +1,14 @@
-# Linkly + Prometheus. Usage:
-#   export LINKLY_TOKEN=$(python3 -c "import secrets;print(secrets.token_urlsafe(32))")
+# Hitchly + Prometheus. Usage:
+#   export HITCHLY_TOKEN=$(python3 -c "import secrets;print(secrets.token_urlsafe(32))")
 #   docker compose up -d
 services:
-  linkly:
+  hitchly:
     build: .
     environment:
-      LINKLY_TOKEN: ${LINKLY_TOKEN:?set LINKLY_TOKEN}
-      LINKLY_BASE_URL: ${LINKLY_BASE_URL:-http://localhost:8080}
+      HITCHLY_TOKEN: ${HITCHLY_TOKEN:?set HITCHLY_TOKEN}
+      HITCHLY_BASE_URL: ${HITCHLY_BASE_URL:-http://localhost:8080}
     ports: ["127.0.0.1:8080:8080"]
-    volumes: ["linkly-data:/data"]
+    volumes: ["hitchly-data:/data"]
     restart: unless-stopped
 
   prometheus:
@@ -16,13 +16,13 @@ services:
     profiles: ["monitoring"]       # docker compose --profile monitoring up -d
     volumes: ["./deploy/prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
     environment:
-      LINKLY_TOKEN: ${LINKLY_TOKEN:?set LINKLY_TOKEN}
+      HITCHLY_TOKEN: ${HITCHLY_TOKEN:?set HITCHLY_TOKEN}
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        echo "$$LINKLY_TOKEN" > /tmp/token
+        echo "$$HITCHLY_TOKEN" > /tmp/token
         exec /bin/prometheus --config.file=/etc/prometheus/prometheus.yml
     ports: ["127.0.0.1:9090:9090"]
 
 volumes:
-  linkly-data:
+  hitchly-data:

@@ -1,8 +1,8 @@
 import unittest
 
-from shortener.domain import Conflict, NotFound, ValidationError
-from shortener.service import DAY, LinkService
-from shortener.storage import Storage
+from hitchly.domain import Conflict, NotFound, ValidationError
+from hitchly.service import DAY, LinkService
+from hitchly.storage import Storage
 
 
 class ServiceTests(unittest.TestCase):

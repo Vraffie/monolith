@@ -5,10 +5,10 @@ import json
 import threading
 import unittest
 
-from shortener.config import Config
-from shortener.service import LinkService
-from shortener.storage import Storage
-from shortener.web import create_server
+from hitchly.config import Config
+from hitchly.service import LinkService
+from hitchly.storage import Storage
+from hitchly.web import create_server
 
 TOKEN = "test-token"
 
@@ -118,7 +118,7 @@ class ApiTests(unittest.TestCase):
         status, body, res = self.request("GET", "/metrics")
         self.assertEqual(status, 200)
         self.assertTrue(res.getheader("Content-Type").startswith("text/plain"))
-        for name in ("linkly_links ", "linkly_links_expired ", "linkly_clicks_total "):
+        for name in ("hitchly_links ", "hitchly_links_expired ", "hitchly_clicks_total "):
             self.assertIn(name, body)
 
     def test_patch(self):

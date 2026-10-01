@@ -38,7 +38,7 @@ def _row_to_link(row: sqlite3.Row) -> Link:
 
 
 class Storage:
-    def __init__(self, path: str = "linkly.db") -> None:
+    def __init__(self, path: str = "hitchly.db") -> None:
         self.path = path
         # An in-memory database exists per connection, so share a single one.
         self._shared = sqlite3.connect(":memory:", check_same_thread=False) if path == ":memory:" else None

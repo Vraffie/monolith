@@ -15,7 +15,7 @@ The service takes a clock and a storage instance, so tests need no mocking
 frameworks — they use an in-memory DB and a fake clock.
 
 ## Beyond the server
-The SDK (`linkly_client`) and CLI (`linklyctl`) sit outside this layering and consume only the HTTP API
+The SDK (`hitchly_client`) and CLI (`hitch`) sit outside this layering and consume only the HTTP API
 (see [ECOSYSTEM.md](ECOSYSTEM.md) and ADR 0004). `ratelimit.py` is an in-process helper used by `web.py`.
 
 ## Key flows
