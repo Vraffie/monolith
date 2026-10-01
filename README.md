@@ -121,6 +121,7 @@ docs/          product brief, architecture, ADRs
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Layers, flows, data model, security, ADR index |
 | [docs/API.md](docs/API.md) | Full endpoint reference |
 | [docs/ECOSYSTEM.md](docs/ECOSYSTEM.md) | How server, SDK, CLI and ops tools fit together |
+| [docs/HOSTING.md](docs/HOSTING.md) | Free hosting options (static toolbox on Pages; server on a Pi/Oracle/tunnel) and free testing |
 | [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md) | Bookmarklet, shell, CI, cron, share-sheet recipes |
 | [docs/COMPETITIVE-ANALYSIS.md](docs/COMPETITIVE-ANALYSIS.md) | How we compare to Shlink, YOURLS, Kutt, Dub… and why |
 | [docs/CLI.md](docs/CLI.md) · [docs/SDK.md](docs/SDK.md) | `hitch` and Python client |

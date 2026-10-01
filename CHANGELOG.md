@@ -11,6 +11,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
   metrics `linkly_*` → `hitchly_*`.
 
 ### Added
+- Static deployment: the toolbox works without a server (`.github/workflows/pages.yml` publishes it to GitHub Pages; the UI detects the missing server). `docs/HOSTING.md` compares free hosting options.
+- Bulk create (`POST /api/links/bulk`), overview, purge and backup endpoints; admin tools in the UI (import with column mapping, export, bulk shorten, maintenance); `hitch overview/purge/backup`.
 - Web UI is now a modular toolbox: Short links, QR generator (Wi-Fi, vCard, email, SMS, phone, location; generated in the browser), redirect tracer, UTM builder, URL parser/cleaner, Base64, URL encode/decode, JWT decoder, hash/HMAC, UUID, password/token generator, JSON formatter, timestamp converter, colour + contrast, regex tester, text utilities, base converter, dead-link checker. Client-side tools work without signing in.
 - `POST /api/tools/trace` and `POST /api/links/check` (server-side probing with SSRF protection); SDK `trace`/`check_links`; `hitch trace`.
 - Stricter CSP: no inline scripts or styles.

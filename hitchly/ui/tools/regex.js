@@ -5,7 +5,7 @@ const TIMEOUT_MS = 1500;
 /** Run in a Worker so a catastrophic pattern (e.g. (a+)+$) can be terminated instead of freezing the tab. */
 function runInWorker(pattern, flags, text) {
   return new Promise(resolve => {
-    const w = new Worker("/ui/lib/regex-worker.js", { type: "module" });
+    const w = new Worker(new URL("../lib/regex-worker.js", import.meta.url), { type: "module" });
     const timer = setTimeout(() => { w.terminate(); resolve({ ok: false, error: `Stopped after ${TIMEOUT_MS} ms: this pattern may backtrack catastrophically` }); }, TIMEOUT_MS);
     w.onmessage = e => { clearTimeout(timer); w.terminate(); resolve(e.data); };
     w.onerror = () => { clearTimeout(timer); w.terminate(); resolve({ ok: false, error: "The regex engine failed" }); };

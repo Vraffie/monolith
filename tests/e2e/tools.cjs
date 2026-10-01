@@ -84,13 +84,16 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8080';
   ok('utm built', (await out(0)) === 'https://example.com/p?a=1&utm_source=News', await out(0));
   ok('utm lowercase tip', (await p.innerText('main')).includes('lower case'));
   await p.click('button:has-text("Shorten this URL")'); await p.waitForSelector('main h1:has-text("Short links")');
-  ok('utm -> shorten hands URL to Links tool (asks sign-in when signed out)', (await p.innerText('main')).includes('API token'));
+  const handoff = await p.innerText('main');
+  ok('utm -> shorten hands URL to the Links tool (sign-in on a server, explanation on a static host)', process.env.STATIC ? handoff.includes('needs a Hitchly server') : handoff.includes('API token'), handoff.slice(0, 200));
 
   await go('url-parser'); await p.fill('input[type=url]','https://example.com/x?id=7&utm_source=n&fbclid=1#top'); await p.waitForTimeout(100);
   ok('url cleaned', (await out(0)) === 'https://example.com/x?id=7#top', await out(0));
 
   await p.fill('#toolSearch','hash'); ok('tool search filters nav', (await p.$$('nav a:not([hidden])')).length === 1);
   console.log(`\n${pass} passed, ${fail} failed`);
+  // On a static host the server probe (GET health) legitimately 404s; nothing else may log an error.
+  if (process.env.STATIC) for (let i = bad.length - 1; i >= 0; i--) if (/404/.test(bad[i])) bad.splice(i, 1);
   console.log('console/CSP errors:', bad);
   await b.close();
   process.exit(fail || bad.length ? 1 : 0);

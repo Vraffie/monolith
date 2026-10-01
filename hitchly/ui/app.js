@@ -8,6 +8,9 @@ const store = {
 };
 let token = store.get();
 let prefill = "";
+// On a static host (GitHub Pages etc.) there is no Hitchly server: only the client-side tools work.
+let serverless = false;
+fetch("health").then(r => { serverless = !r.ok; }, () => { serverless = true; }).finally(() => route());
 
 export const ctx = {
   origin: location.origin,
@@ -86,7 +89,7 @@ function currentId() {
   const hash = location.hash;
   const m = hash.match(/^#new=(.+)$/);
   if (m) { try { prefill = decodeURIComponent(m[1]); } catch { /* ignore malformed */ } history.replaceState(null, "", "#/links"); return "links"; }
-  return (hash.match(/^#\/([a-z0-9-]+)/) || [])[1] || "links";
+  return (hash.match(/^#\/([a-z0-9-]+)/) || [])[1] || (serverless ? "base64" : "links");
 }
 
 function route() {
@@ -100,6 +103,11 @@ function route() {
   main.replaceChildren(h("h1", {}, tool.title), h("p", { class: "blurb" }, tool.blurb));
   const body = h("div");
   main.append(body);
+  if (tool.needsAuth && serverless) {
+    body.append(h("div", { class: "card" }, h("p", {}, "This tool needs a Hitchly server, and this page is the static toolbox, which has no server behind it."),
+      h("p", { class: "muted" }, "Run your own (one command, no dependencies) to get short links, tracking, the redirect tracer and the admin tools. All the other tools on the left work right here.")));
+    return;
+  }
   if (tool.needsAuth && !token) { body.append(loginCard(route)); return; }
   try { tool.mount(body, ctx); }
   catch (e) { body.append(h("div", { class: "card err" }, "This tool failed to load: " + e.message)); console.error(e); }
@@ -111,5 +119,4 @@ document.getElementById("auth").addEventListener("click", () => {
 });
 search.addEventListener("input", filterNav);
 addEventListener("hashchange", route);
-buildNav();
-route();
+buildNav();  // the first route() runs once the server probe above has settled, so there is no login flash on static hosts

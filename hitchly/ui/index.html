@@ -5,12 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>Hitchly</title>
-<link rel="icon" href="/ui/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/ui/app.css">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; worker-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data: blob:; base-uri 'none'; form-action 'none'">
+<link rel="icon" href="ui/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="ui/app.css">
 </head>
 <body>
 <header class="top">
-  <a class="brand" href="#/links">Hitchly</a>
+  <a class="brand" href="#/">Hitchly</a>
   <input id="toolSearch" type="search" placeholder="Find a tool…" aria-label="Find a tool" autocomplete="off">
   <span class="spacer"></span>
   <button class="ghost" id="auth"></button>
@@ -21,6 +22,6 @@
 </div>
 <div id="toast" role="status" aria-live="polite"></div>
 <noscript><p class="noscript">Hitchly's tools need JavaScript.</p></noscript>
-<script type="module" src="/ui/app.js"></script>
+<script type="module" src="ui/app.js"></script>
 </body>
 </html>
