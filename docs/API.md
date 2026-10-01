@@ -20,7 +20,7 @@ Every error is `{"error": "<message>"}`.
 | 404 | Unknown slug or route |
 | 409 | Custom slug already in use |
 | 410 | Link expired (redirect route only) |
-| 429 | Too many failed auth attempts; see `Retry-After` |
+| 429 | Too many failed auth attempts, or too many links created; see `Retry-After` |
 | 500 | Unexpected server error |
 
 ## Link object
@@ -46,6 +46,7 @@ Timestamps are Unix seconds (UTC). `expires_at` is `null` for links that never e
 | `slug` | string | no | 3–32 chars of `A-Z a-z 0-9 _ -`; not reserved (`api`, `health`, `metrics`, `static`, `favicon.ico`, `robots.txt`, case-insensitive) |
 | `ttl_seconds` | integer | no | 1 – 315 360 000 (10 years) |
 
+Limited to `LINKLY_CREATE_LIMIT` (default 60) successful creations per client per minute, then `429`.
 Returns `201` with the link object and `Location: /api/links/{slug}`.
 Without `slug`, a random 7-character one is generated.
 

@@ -56,6 +56,7 @@ More in [docs/CLI.md](docs/CLI.md); programmatic use in [docs/SDK.md](docs/SDK.m
 | `LINKLY_DB`       | `linkly.db`  | SQLite file path                                       |
 | `LINKLY_BASE_URL` | request Host | Public origin used in returned `short_url`s            |
 | `LINKLY_AUTH_FAIL_LIMIT` | `10`  | Failed auth attempts per client/minute before `429`    |
+| `LINKLY_CREATE_LIMIT` | `60`      | Link creations per client/minute before `429` (0 = off)      |
 | `LINKLY_TRUST_PROXY` | off       | Use `X-Forwarded-For` for client IP (only behind your proxy) |
 
 ## API

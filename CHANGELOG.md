@@ -2,6 +2,10 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org/).
 
+## [Unreleased]
+### Added
+- Rate limit on link creation (`LINKLY_CREATE_LIMIT`, default 60/min per client).
+
 ## [1.1.0] - 2026-10-01
 ### Added
 - `PATCH /api/links/{slug}` to edit target and expiry.

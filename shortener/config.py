@@ -16,6 +16,7 @@ class Config:
     base_url: str = ""  # public origin used when building short URLs, e.g. https://go.example.com
     token_generated: bool = False
     trust_proxy: bool = False  # take client IP from X-Forwarded-For (only behind a proxy you control)
+    create_limit: int = 60  # POST /api/links per client per minute; 0 disables
     auth_fail_limit: int = 10  # failed token attempts per client per minute before 429
 
     @classmethod
@@ -32,5 +33,6 @@ class Config:
             base_url=env.get("LINKLY_BASE_URL", "").rstrip("/"),
             token_generated=generated,
             trust_proxy=env.get("LINKLY_TRUST_PROXY", "").lower() in ("1", "true", "yes"),
+            create_limit=int(env.get("LINKLY_CREATE_LIMIT", "60")),
             auth_fail_limit=int(env.get("LINKLY_AUTH_FAIL_LIMIT", "10")),
         )

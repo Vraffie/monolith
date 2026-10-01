@@ -173,3 +173,26 @@ class AuthLimitTests(unittest.TestCase):
             self.assertEqual(get(TOKEN).status, 429)  # lockout applies even to the right token
         finally:
             server.shutdown(); server.server_close()
+
+
+class CreateLimitTests(unittest.TestCase):
+    def test_creation_rate_limit(self):
+        config = Config(host="127.0.0.1", port=0, db_path=":memory:", token=TOKEN, create_limit=2)
+        server = create_server(LinkService(Storage(":memory:")), config)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        port = server.server_address[1]
+
+        def post(i):
+            c = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+            c.request("POST", "/api/links", json.dumps({"url": f"https://a.com/{i}"}),
+                      {"Authorization": f"Bearer {TOKEN}"})
+            r = c.getresponse(); r.read(); c.close()
+            return r
+
+        try:
+            self.assertEqual([post(i).status for i in range(2)], [201, 201])
+            r = post(3)
+            self.assertEqual(r.status, 429)
+            self.assertGreaterEqual(int(r.getheader("Retry-After")), 1)
+        finally:
+            server.shutdown(); server.server_close()

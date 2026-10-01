@@ -14,6 +14,7 @@ hardened for direct internet exposure: **put a TLS-terminating reverse proxy in 
 | Variable | Default | Notes |
 |----------|---------|-------|
 | `LINKLY_AUTH_FAIL_LIMIT` | `10` | Failed token attempts per client per minute before `429` |
+| `LINKLY_CREATE_LIMIT` | `60` | Links created per client per minute before `429`; `0` disables |
 | `LINKLY_TRUST_PROXY` | off | Set to `1` **only** behind a proxy that overwrites `X-Forwarded-For`; otherwise every client appears as the proxy and shares one lockout bucket |
 
 With nginx add `proxy_set_header X-Forwarded-For $remote_addr;` (overwrite, don't append) and set `LINKLY_TRUST_PROXY=1`.

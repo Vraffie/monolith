@@ -41,6 +41,7 @@ def _csv_safe(value: str | None) -> str:
 
 def make_handler(service: LinkService, config: Config):
     auth_failures = RateLimiter(max(1, config.auth_fail_limit), 60)
+    creations = RateLimiter(config.create_limit, 60) if config.create_limit > 0 else None
 
     class Handler(BaseHTTPRequestHandler):
         server_version = f"Linkly/{__version__}"
@@ -216,8 +217,16 @@ def make_handler(service: LinkService, config: Config):
                 return self._error(404, "not found")
             if not self._require_auth():
                 return
+            if creations:
+                ip = self._client_ip()
+                wait = creations.blocked_for(ip)
+                if wait:
+                    self.close_connection = True
+                    return self._error(429, "too many links created, slow down", {"Retry-After": str(int(wait) + 1)})
             body = self._read_json()
             link = service.create(body.get("url"), body.get("slug"), body.get("ttl_seconds"))
+            if creations:
+                creations.record(self._client_ip())
             self._json(201, self._link_json(link), {"Location": f"/api/links/{link.slug}"})
 
         def _patch(self):
