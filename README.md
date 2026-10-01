@@ -56,6 +56,8 @@ All `/api/*` routes need `Authorization: Bearer <token>`. Errors are `{"error": 
 | `GET /{slug}`  *(public)*     | redirect and record click                    | 302 / 410 / 404 |
 | `GET /health`  *(public)*     | liveness                                     | 200     |
 
+Full details: [docs/API.md](docs/API.md).
+
 Status codes: `400` validation, `401` bad token, `404` unknown, `409` slug taken.
 
 ## Development
@@ -78,4 +80,13 @@ tests/         unit + integration tests
 docs/          product brief, architecture, ADRs
 ```
 
-See [docs/PRODUCT.md](docs/PRODUCT.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+## Documentation
+
+| Doc | Contents |
+|-----|----------|
+| [docs/PRODUCT.md](docs/PRODUCT.md) | Problem, users, stories, roadmap |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Layers, flows, data model, security, ADR index |
+| [docs/API.md](docs/API.md) | Full endpoint reference |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | systemd, Docker, nginx, backups |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Ground rules, commit style, releasing |
+| [CHANGELOG.md](CHANGELOG.md) | Release history |
