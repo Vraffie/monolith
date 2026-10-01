@@ -4,17 +4,18 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "linkly"
-version = "1.0.0"
-description = "Small self-hosted URL shortener with click analytics (stdlib only)"
+version = "1.1.0"
+description = "Self-hosted URL shortener with click analytics, plus a Python SDK and CLI (stdlib only)"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = []
 
 [project.scripts]
 linkly = "shortener.__main__:main_cli"
+linklyctl = "linklyctl.cli:main_cli"
 
 [tool.setuptools]
-packages = ["shortener"]
+packages = ["shortener", "linkly_client", "linklyctl"]
 
 [tool.setuptools.package-data]
 shortener = ["ui.html"]

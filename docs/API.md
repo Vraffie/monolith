@@ -80,4 +80,4 @@ Returns `204`. Click history is deleted with the link.
 - `410` plain text if expired (not counted); `404` if unknown.
 
 ### `GET /health` — liveness (public)
-`200 {"status":"ok","version":"1.0.0"}`
+`200 {"status":"ok","version":"1.1.0"}`
