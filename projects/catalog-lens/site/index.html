@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+<meta name="color-scheme" content="light dark">
+<title>Catalog Lens</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header>
+  <h1>Catalog Lens</h1>
+  <div id="loader" class="loader">
+    <label class="btn" for="zipIn">Open zip(s)</label><input id="zipIn" type="file" accept=".zip,application/zip" multiple hidden>
+    <label class="btn ghost" for="dirIn">Open folder</label><input id="dirIn" type="file" webkitdirectory multiple hidden>
+    <button id="sampleBtn" type="button" class="ghost">Load sample</button>
+  </div>
+  <div id="meta" class="meta" role="status" aria-live="polite"></div>
+</header>
+<main id="content">
+<div id="app" hidden>
+  <div class="bar">
+    <nav class="tabs" role="tablist" aria-label="Views">
+      <button role="tab" id="tab-graph" aria-selected="true" data-view="graph">Graph</button>
+      <button role="tab" id="tab-prices" aria-selected="false" data-view="prices">Prices</button>
+      <button role="tab" id="tab-checks" aria-selected="false" data-view="checks">Checks <span id="checkBadge" class="badge"></span></button>
+    </nav>
+    <label class="inline">Prices as of <input id="asOf" type="date"></label>
+  </div>
+  <div id="view"></div>
+</div>
+<div id="empty" class="empty">
+  <h2>See how an offer catalogue fits together</h2>
+  <p>Open an offer-configuration package (a zip, or the unzipped folder) to get an interactive graph: offers → feature groups → charge clusters → bill types → tax, with up/downgrade rules, price timelines and consistency checks. Everything runs in your browser; nothing is uploaded.</p>
+  <p class="muted">Drop a .zip anywhere on this page, or use the buttons above. <strong>Load sample</strong> opens a small fictional catalogue with a few deliberate mistakes.</p>
+</div>
+</main>
+<div id="toast" role="status" aria-live="polite"></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

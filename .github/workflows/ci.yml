@@ -119,3 +119,22 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m unittest discover -s tests -v
+
+  catalog-lens:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: projects/catalog-lens
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test "tests/*.test.mjs"
+      - run: npm install --no-save playwright && npx playwright install --with-deps chromium
+      - name: Drive the UI in a real browser
+        run: |
+          python3 -m http.server 8091 -d site &
+          sleep 1
+          node tests/e2e.cjs
+
