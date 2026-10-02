@@ -26,7 +26,9 @@ class Node:
     key: str
     file: str | None = None      # None for external (unresolved) nodes
     path: str = ""               # element path inside the file
+    group: str = ""              # folder (or top-level XML section when the file has no folder)
     external: bool = False
+    files: list[str] = field(default_factory=list)   # every file defining it (more than one only with merge=True)
 
 
 @dataclass
@@ -36,6 +38,7 @@ class Edge:
     via: str                     # tag of the reference element
     file: str = ""
     path: str = ""
+    loose: bool = False          # resolved by key alone, type name did not match
 
 
 @dataclass
@@ -47,18 +50,17 @@ class Graph:
 
     def group_edges(self, depth: int = 2) -> tuple[dict[str, int], dict[tuple[str, str], int]]:
         """Entity counts per folder and reference counts between folders (first ``depth`` segments)."""
-        def grp(f: str) -> str:
-            return "/".join(f.split("/")[:-1][:depth]) or "."
+        def grp(nid: str) -> str:
+            return "/".join(self.nodes[nid].group.split("/")[:depth]) or "."
 
         sizes: dict[str, int] = {}
-        for n in self.nodes.values():
+        for nid, n in self.nodes.items():
             if n.file:
-                sizes[grp(n.file)] = sizes.get(grp(n.file), 0) + 1
+                sizes[grp(nid)] = sizes.get(grp(nid), 0) + 1
         out: dict[tuple[str, str], int] = {}
         for e in self.edges:
-            a, b = self.nodes[e.source].file, self.nodes[e.target].file
-            if a and b and grp(a) != grp(b):
-                k = (grp(a), grp(b))
+            if self.nodes[e.source].file and self.nodes[e.target].file and grp(e.source) != grp(e.target):
+                k = (grp(e.source), grp(e.target))
                 out[k] = out.get(k, 0) + 1
         return sizes, out
 
@@ -89,7 +91,7 @@ def find_xml_files(root: str) -> list[str]:
     return found
 
 
-def scan(root: str, key_tag: str = "key", ref_suffix: str = "Key") -> Graph:
+def scan(root: str, key_tag: str = "key", ref_suffix: str = "Key", merge: bool = False) -> Graph:
     """Scan every ``*.xml`` under ``root`` (or the single file ``root``)."""
     g = Graph()
     base = os.path.dirname(root) if os.path.isfile(root) else root
@@ -107,20 +109,23 @@ def scan(root: str, key_tag: str = "key", ref_suffix: str = "Key") -> Graph:
         except (ET.ParseError, OSError) as exc:
             g.errors[rel] = str(exc)
             continue
-        _walk(tree, rel, [], None, g, refs, by_key, key_tag, ref_suffix)
+        _walk(tree, rel, [], None, g, refs, by_key, key_tag, ref_suffix, merge)
 
+    tags = {tag for tag, _ in by_key}
+    seen: set[tuple[str, str, str]] = set()
     for src, via, typ, value, rel, path in refs:
-        target = _resolve(typ, value, by_key, g, rel)
+        target, loose = _resolve(typ, value, by_key, g, rel, tags)
         if target is None:
             tid = f"?{typ}:{value}"
             g.nodes.setdefault(tid, Node(tid, typ, value, external=True))
             target = tid
-        if src is not None:
-            g.edges.append(Edge(src, target, via, rel, path))
+        if src is not None and not (merge and (src, target, via) in seen):
+            seen.add((src, target, via))
+            g.edges.append(Edge(src, target, via, rel, path, loose))
     return g
 
 
-def _walk(el, rel, trail, owner, g, refs, by_key, key_tag, ref_suffix):
+def _walk(el, rel, trail, owner, g, refs, by_key, key_tag, ref_suffix, merge):
     tag = _local(el.tag)
     trail = trail + [tag]
     path = "/".join(trail)
@@ -128,9 +133,13 @@ def _walk(el, rel, trail, owner, g, refs, by_key, key_tag, ref_suffix):
     key_child = next((c for c in el if _local(c.tag) == key_tag and (c.text or "").strip()), None)
     if key_child is not None:
         key = key_child.text.strip()
-        nid = f"{rel}::{tag}:{key}"
-        if nid not in g.nodes:
-            g.nodes[nid] = Node(nid, tag, key, rel, path)
+        nid = f"{tag}:{key}" if merge else f"{rel}::{tag}:{key}"
+        if nid in g.nodes:
+            if rel not in g.nodes[nid].files:
+                g.nodes[nid].files.append(rel)
+        else:
+            dirs = rel.split("/")[:-1] or trail[1:2]
+            g.nodes[nid] = Node(nid, tag, key, rel, path, "/".join(dirs), files=[rel])
             by_key.setdefault((tag.lower(), key), []).append(nid)
         owner = nid
 
@@ -143,11 +152,13 @@ def _walk(el, rel, trail, owner, g, refs, by_key, key_tag, ref_suffix):
         if is_ref and value and len(child) == 0:
             refs.append((owner, ctag, ctag[: -len(ref_suffix)], value, rel, f"{path}/{ctag}"))
         else:
-            _walk(child, rel, trail, owner, g, refs, by_key, key_tag, ref_suffix)
+            _walk(child, rel, trail, owner, g, refs, by_key, key_tag, ref_suffix, merge)
 
 
 def _closeness(g: Graph, nid: str, src_file: str) -> int:
     """Number of leading path segments shared with the referencing file."""
+    if g.nodes[nid].file == src_file:
+        return 1 << 20  # same file always wins
     n = 0
     for x, y in zip((g.nodes[nid].file or "").split("/")[:-1], src_file.split("/")[:-1]):
         if x != y:
@@ -156,18 +167,28 @@ def _closeness(g: Graph, nid: str, src_file: str) -> int:
     return n
 
 
-def _resolve(typ, value, by_key, g, src_file):
-    """Pick the definition a reference points at.
+def _resolve(typ, value, by_key, g, src_file, tags):
+    """Pick the definition a reference points at; returns ``(node id | None, loose)``.
 
-    Same key defined in several trees (``portfolio/`` and ``wholesale/``) resolves to
-    the one sharing the longest folder prefix with the referencing file.
+    1. exact type (``featureGroupKey`` -> ``featureGroup``);
+    2. type-name drift (``ruleKey`` -> ``offerRule``, ``resourceSpecificationGroupKey`` ->
+       ``resourceSpecificationGroupReference``);
+    3. loose: the key alone, if no entity of that type exists anywhere and every definition of
+       the key has the same tag (``businessRuleParamKey`` -> ``parameter``). Reported as ``loose``;
+       a known type with a missing key stays unresolved.
+
+    The same key defined in several trees (``portfolio/`` and ``wholesale/``) resolves to the
+    definition sharing the longest folder prefix with the referencing file.
     """
     t = typ.lower()
-    cands = list(by_key.get((t, value), []))
-    if not cands:
-        # Tolerate naming drift such as ``resourceSpecificationGroupKey`` ->
-        # ``resourceSpecificationGroupReference``.
-        cands = [nid for (tag, k), ids in by_key.items() if k == value and (tag.startswith(t) or t.startswith(tag)) for nid in ids]
-    if not cands:
-        return None
-    return max(cands, key=lambda nid: _closeness(g, nid, src_file))
+    steps = [
+        (False, [i for i in by_key.get((t, value), [])]),
+        (False, [i for (tag, k), ids in by_key.items() if k == value and (tag.startswith(t) or tag.endswith(t) or t.startswith(tag) or t.endswith(tag)) for i in ids]),
+    ]
+    loose = [i for (tag, k), ids in by_key.items() if k == value for i in ids]
+    if t not in tags and len({g.nodes[i].type for i in loose}) == 1:
+        steps.append((True, loose))
+    for is_loose, cands in steps:
+        if cands:
+            return max(cands, key=lambda nid: _closeness(g, nid, src_file)), is_loose
+    return None, False

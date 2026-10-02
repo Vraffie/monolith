@@ -61,9 +61,34 @@ class ProximityTests(unittest.TestCase):
         self.assertEqual(len(g.edges), 2)
 
     def test_group_edges(self):
+        # files without folders are grouped by their top-level XML section
         sizes, edges = scan(EX).group_edges(1)
-        self.assertEqual(sizes, {".": 6})  # examples/ files sit at the root of the scan
-        self.assertEqual(edges, {})
+        self.assertEqual(sizes["baseOffers"], 2)
+        self.assertEqual(edges[("baseOffers", "featureGroup")], 2)
+        self.assertNotIn(("featureGroup", "featureGroup"), edges)
+
+    def test_unknown_type_resolves_by_key_but_known_type_does_not(self):
+        with tempfile.TemporaryDirectory() as d:
+            with open(f"{d}/a.xml", "w") as fh:
+                fh.write("<r><parameter><key>P</key></parameter><serviceFeature><key>S</key></serviceFeature>"
+                         "<x><key>X</key><ruleParamKey>P</ruleParamKey><serviceFeatureKey>P</serviceFeatureKey></x></r>")
+            g = scan(d)
+        by = {e.via: e for e in g.edges}
+        self.assertTrue(by["ruleParamKey"].loose)
+        self.assertTrue(g.nodes[by["serviceFeatureKey"].target].external)
+
+
+class MergeTests(unittest.TestCase):
+    def test_merge_unifies_entities_across_files(self):
+        with tempfile.TemporaryDirectory() as d:
+            for f in ("a.xml", "b.xml"):
+                with open(f"{d}/{f}", "w") as fh:
+                    fh.write("<r><t><key>T</key></t><o><key>O</key><tKey>T</tKey></o></r>")
+            sep, merged = scan(d), scan(d, merge=True)
+        self.assertEqual(len(sep.nodes), 4)
+        self.assertEqual(len(merged.nodes), 2)
+        self.assertEqual(len(merged.edges), 1)
+        self.assertEqual(merged.nodes["t:T"].files, ["a.xml", "b.xml"])
 
 
 class RenderTests(unittest.TestCase):
