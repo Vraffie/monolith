@@ -4,7 +4,7 @@ name: Pages
 on:
   push:
     branches: [main]
-    paths: ["hitchly/ui/**", ".github/workflows/pages.yml"]
+    paths: ["projects/hitchly/hitchly/ui/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -27,7 +27,7 @@ jobs:
       - name: Assemble the static site (index at the root, assets under ui/)
         run: |
           mkdir _site
-          cp -r hitchly/ui _site/ui
+          cp -r projects/hitchly/hitchly/ui _site/ui
           mv _site/ui/index.html _site/index.html
           touch _site/.nojekyll
       - uses: actions/upload-pages-artifact@v3

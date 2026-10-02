@@ -3,6 +3,10 @@ on:
   push:
   pull_request:
 
+defaults:
+  run:
+    working-directory: projects/hitchly
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -77,11 +81,11 @@ jobs:
         with:
           name: hitchly-toolbox
           path: |
-            dist/hitchly-toolbox.html
+            projects/hitchly/dist/hitchly-toolbox.html
             dist/hitchly-toolbox.html.sha256
 
   docker:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: docker build -t hitchly .
+      - run: docker build -t hitchly projects/hitchly
