@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-// Check a package from the command line:  node tools/lens.mjs <package.zip | folder> [--json] [--min=warn]
+// Check a package from the command line:  node tools/lens.mjs <package.zip | folder> [--path=<folder inside it>] [--json] [--min=warn]
 // Exit code 1 if there are errors (or warnings with --min=warn), so it can gate a catalogue change in CI.
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { readZip } from "../site/lib/zip.js";
 import { parsePackage } from "../site/lib/catalog.js";
 import { runChecks } from "../site/lib/checks.js";
+import { scopeFiles } from "../site/lib/scope.js";
 
 async function load(path) {
   if (statSync(path).isDirectory()) {
@@ -16,9 +17,11 @@ async function load(path) {
 }
 
 const args = process.argv.slice(2), target = args.find(a => !a.startsWith("--"));
-if (!target) { console.error("usage: lens.mjs <package.zip | folder> [--json] [--min=warn|error]"); process.exit(2); }
+if (!target) { console.error("usage: lens.mjs <package.zip | folder> [--path=<folder>] [--json] [--min=warn|error]"); process.exit(2); }
 const min = (args.find(a => a.startsWith("--min=")) || "--min=error").slice(6);
-const cat = parsePackage(await load(target)), findings = runChecks(cat);
+const scope = (args.find(a => a.startsWith("--path=")) || "").slice(7), all = await load(target), files = scopeFiles(all, scope);
+if (!files.size) { console.error(`No files under "${scope}" (${all.size} files in total).`); process.exit(2); }
+const cat = parsePackage(files), findings = runChecks(cat);
 if (args.includes("--json")) console.log(JSON.stringify(findings, null, 1));
 else {
   const n = s => findings.filter(f => f.severity === s).length;

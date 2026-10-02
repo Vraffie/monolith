@@ -27,6 +27,7 @@
       <button role="tab" id="tab-prices" aria-selected="false" data-view="prices">Prices</button>
       <button role="tab" id="tab-checks" aria-selected="false" data-view="checks">Checks <span id="checkBadge" class="badge"></span></button>
     </nav>
+    <label class="inline">Folder <input id="scope" type="text" list="dirs" placeholder="whole package" autocomplete="off" spellcheck="false" aria-describedby="scopeInfo"></label><datalist id="dirs"></datalist><span id="scopeInfo" class="muted" role="status" aria-live="polite"></span>
     <label class="inline">Prices as of <input id="asOf" type="date"></label>
   </div>
   <div id="view"></div>

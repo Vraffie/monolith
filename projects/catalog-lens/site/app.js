@@ -2,30 +2,42 @@ import { h } from "./lib/dom.js";
 import { readZip } from "./lib/zip.js";
 import { parsePackage } from "./lib/catalog.js";
 import { runChecks } from "./lib/checks.js";
+import { scopeFiles, folderList, cleanScope } from "./lib/scope.js";
 import { buildGraph, attachFindings, LAYERS } from "./lib/graph.js";
 import { mountGraph } from "./views/graph.js";
 import { mountPrices } from "./views/prices.js";
 import { mountChecks } from "./views/checks.js";
 
 const $ = id => document.getElementById(id);
-let model = null, view = "graph", graphCtl = null;
+let model = null, view = "graph", graphCtl = null, source = null;
 const state = { selected: null, search: "", layers: new Set(LAYERS), showElsewhere: false, showDeps: false, isolate: null };
 
 function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 3500); }
 
-/** files: array of Map(path -> bytes); several packages are merged so references between them resolve. */
-function build(name, maps) {
-  const all = new Map();
-  maps.forEach((map, i) => { for (const [p, d] of map) all.set(maps.length > 1 ? `${i + 1}/${p}` : p, d); });
-  const cat = parsePackage(all), findings = runChecks(cat), date = $("asOf").value || new Date().toISOString().slice(0, 10);
+/** Parse the source files (optionally only those under `scope`) and show them. Several packages are merged so references between them resolve. */
+function rebuild(scope = "") {
+  const files = scopeFiles(source.files, scope);
+  if (!files.size) { toast(`No files under "${scope}". Pick a folder from the list.`); return false; }
+  const cat = parsePackage(files), findings = runChecks(cat), date = $("asOf").value || new Date().toISOString().slice(0, 10);
   const graph = attachFindings(buildGraph(cat, { date }), findings);
-  model = { name, cat, findings, graph, date };
+  model = { name: source.name, cat, findings, graph, date };
   Object.assign(state, { selected: null, search: "", isolate: null });
   $("empty").hidden = true; $("app").hidden = false;
   const n = s => findings.filter(f => f.severity === s).length;
-  $("meta").textContent = `${name}: ${Object.keys(cat.offers).length} offers · ${Object.keys(cat.featureGroups).length} feature groups · ${Object.keys(cat.clusters).length} charge clusters · ${cat.offerRules.length} rules · ${cat.files.length} files`;
+  $("meta").textContent = `${source.name}: ${Object.keys(cat.offers).length} offers · ${Object.keys(cat.featureGroups).length} feature groups · ${Object.keys(cat.clusters).length} charge clusters · ${cat.offerRules.length} rules`;
+  $("scopeInfo").textContent = `${files.size} of ${source.files.size} files`;
   $("checkBadge").textContent = n("error") ? `${n("error")} ✖` : n("warn") ? `${n("warn")} !` : "✓";
   show(view);
+  return true;
+}
+
+function build(name, maps) {
+  const all = new Map();
+  maps.forEach((map, i) => { for (const [p, d] of map) all.set(maps.length > 1 ? `${i + 1}/${p}` : p, d); });
+  source = { name, files: all };
+  const dl = $("dirs"); dl.replaceChildren(...folderList(all).map(d => { const o = document.createElement("option"); o.value = d; return o; }));
+  $("scope").value = "";
+  rebuild("");
 }
 
 function show(v) {
@@ -59,6 +71,9 @@ $("sampleBtn").addEventListener("click", async () => {
   catch (e) { toast(e.message); }
 });
 for (const b of document.querySelectorAll("[role=tab]")) b.addEventListener("click", () => show(b.dataset.view));
+function applyScope() { const v = cleanScope($("scope").value); if (source && !rebuild(v)) $("scope").select(); }
+$("scope").addEventListener("change", applyScope);
+$("scope").addEventListener("keydown", e => { if (e.key === "Enter") applyScope(); });
 $("asOf").value = new Date().toISOString().slice(0, 10);
 $("asOf").addEventListener("change", () => { if (model) { model.date = $("asOf").value; model.graph = attachFindings(buildGraph(model.cat, { date: model.date }), model.findings); show(view); } });
 addEventListener("dragover", e => { e.preventDefault(); document.body.classList.add("drop"); });

@@ -12,6 +12,10 @@ Open a package zip (or several at once, or the unzipped folder), or drop it on t
 
 A package is often one offer cut out of a bigger repository, so things it refers to may live in other files. Those appear as dashed "elsewhere" boxes (hidden until you tick *Elsewhere*) and as notes in the checks, not as errors. Open the other zips together and the references resolve.
 
+### Pick a folder
+
+Load a whole repository, then type or pick a folder in the **Folder** box (it suggests every folder that holds XML). Only the files under it are analysed, and the box shows how many files that is. Matching is on whole path segments, so `offers/RBO_AIB_PLUS` selects that folder and not `RBO_AIB_PLUS_X`; a bare folder name matches at any depth; a single file path works too. Clear the box to go back to everything. Note that references to things outside the chosen folder show up as "elsewhere" boxes and notes: scope narrows what is read, it does not look things up elsewhere.
+
 ### Graph
 
 Columns: other offers (from up/downgrade rules) · bundle offers · base offers · feature groups · charge clusters · bill types · tax.
@@ -43,6 +47,7 @@ Severity: **error** = the files contradict themselves; **warn** = probable mista
 
 ```sh
 node tools/lens.mjs package.zip              # or an unzipped folder
+node tools/lens.mjs repo/ --path=portfolio/offers/RBO_AIB_PLUS   # only that folder inside it
 node tools/lens.mjs package.zip --json --min=warn   # exit code 1 on warnings too, for gating a change in CI
 ```
 

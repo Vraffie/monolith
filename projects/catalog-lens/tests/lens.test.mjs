@@ -7,6 +7,7 @@ import { timelineIssues, itemAt, steps } from "../site/lib/prices.js";
 import { parsePackage, ruleMove } from "../site/lib/catalog.js";
 import { runChecks } from "../site/lib/checks.js";
 import { buildGraph, layout, trace, neighbourhood, attachFindings, LAYERS, NODE_W, NODE_H } from "../site/lib/graph.js";
+import { scopeFiles, folderList, cleanScope } from "../site/lib/scope.js";
 import { samplePackage, zipFiles } from "../tools/sample.mjs";
 
 const sample = () => parsePackage(samplePackage());
@@ -126,6 +127,19 @@ test("graph: trace and isolate follow the layers; findings attach to boxes", () 
   assert.equal(g.nodes.find(n => n.id === "cluster:ROUTER_WIFI6").severity, null);
   assert.ok(neighbourhood(g, ["cluster:ETC"], 1).has("group:ETC") && !neighbourhood(g, ["cluster:ETC"], 1).has("bundle:NL_HOME_PLUS"));
   assert.ok(layout(g, neighbourhood(g, ["cluster:ETC"], 1)).nodes.length < g.nodes.length);
+});
+
+test("scope: whole path segments, any nesting, tidy input", () => {
+  const f = new Map(["a/offers/X/o.xml", "a/offers/X/p.xml", "a/offers/XY/o.xml", "b/offers/X/o.xml", "a/other.xml", "README.md"].map(k => [k, 1]));
+  assert.deepEqual([...scopeFiles(f, "")].length, 6);
+  assert.deepEqual([...scopeFiles(f, "a/offers/X").keys()], ["a/offers/X/o.xml", "a/offers/X/p.xml"], "XY is not X");
+  assert.deepEqual([...scopeFiles(f, "/a/offers/X/").keys()].length, 2, "slashes are tidied");
+  assert.deepEqual([...scopeFiles(f, "a\\offers\\X").keys()].length, 2, "backslashes too");
+  assert.deepEqual([...scopeFiles(f, "X").keys()].sort(), ["a/offers/X/o.xml", "a/offers/X/p.xml", "b/offers/X/o.xml"], "a folder name alone matches at any depth");
+  assert.equal(scopeFiles(f, "a/offers/X/o.xml").size, 1, "a single file works");
+  assert.equal(scopeFiles(f, "nope").size, 0);
+  assert.equal(cleanScope("  ./x/y/ "), "x/y");
+  assert.deepEqual(folderList(f), ["a", "b", "a/offers", "b/offers", "a/offers/X", "a/offers/XY", "b/offers/X"]);
 });
 
 const REAL = process.env.CATALOG_ZIP;

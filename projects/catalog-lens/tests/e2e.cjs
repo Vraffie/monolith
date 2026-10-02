@@ -21,6 +21,16 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8091';
   ok('references outside the files are hidden until asked for', (await p.$$('.node.missing')).length === 0);
   await p.check('text=Elsewhere >> input'); ok('"Elsewhere" shows the dashed boxes', (await p.$$('.node.missing')).length >= 1); await p.uncheck('text=Elsewhere >> input');
 
+  // folder scope
+  const folders = await p.$$eval('#dirs option', o => o.map(x => x.value));
+  ok('folder box suggests the folders that hold XML', folders.includes('NL_HOME_PLUS') && folders.includes('NL_HOME_PLUS/chargeClusters') && !folders.includes('NL_HOME_PLUS/prices'), folders.join());
+  await p.fill('#scope', 'NL_HOME_PLUS/chargeClusters'); await p.press('#scope', 'Enter'); await p.waitForTimeout(250);
+  ok('choosing a folder analyses only its files', (await p.innerText('#scopeInfo')).startsWith('11 of 34') && (await p.$$('.node')).length === 11 && /0 offers/.test(await p.innerText('#meta')), (await p.innerText('#scopeInfo')) + ' ' + (await p.$$('.node')).length);
+  await p.fill('#scope', 'does/not/exist'); await p.press('#scope', 'Enter'); await p.waitForTimeout(150);
+  ok('an unknown folder says so and keeps the current view', (await p.innerText('#toast')).includes('No files under') && (await p.$$('.node')).length === 11);
+  await p.fill('#scope', ''); await p.press('#scope', 'Enter'); await p.waitForTimeout(250);
+  ok('clearing the folder returns to the whole package', (await p.innerText('#scopeInfo')).startsWith('34 of 34') && (await p.$$('.node')).length === 31);
+
   // selection, trace, details
   await node('HOME_PLUS_FREE_OV').click();
   ok('selecting a box lights up its chain and dims the rest', (await p.$$('.node.dim')).length > 10 && (await p.$$('.edge.on')).length >= 4);
