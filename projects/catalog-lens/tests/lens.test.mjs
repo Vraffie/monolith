@@ -3,8 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
 import { parseXml, XmlError } from "../site/lib/xml.js";
 import { readZip } from "../site/lib/zip.js";
-import { parseCsv } from "../site/lib/csv.js";
-import { timelineIssues, itemAt, compareTimelines, steps } from "../site/lib/prices.js";
+import { timelineIssues, itemAt, steps } from "../site/lib/prices.js";
 import { parsePackage, ruleMove } from "../site/lib/catalog.js";
 import { runChecks } from "../site/lib/checks.js";
 import { buildGraph, layout, trace, neighbourhood, attachFindings, LAYERS, NODE_W, NODE_H } from "../site/lib/graph.js";
@@ -37,11 +36,6 @@ test("zip: the sample round-trips, and damaged or hostile archives give readable
   for (let cut = 0; cut < zip.length; cut += 97) { try { await readZip(zip.subarray(0, cut)); } catch (e) { assert.ok(e.constructor === Error, `cut ${cut}: ${e}`); } }
 });
 
-test("csv: quotes, commas in fields, CRLF, blank lines, unterminated quote", () => {
-  const r = parseCsv('a,b,c\r\n1,"x, y",3\r\n\r\n4,"he said ""hi""",\r\n');
-  assert.deepEqual(r.map(x => [x.a, x.b, x.c]), [["1", "x, y", "3"], ["4", 'he said "hi"', ""]]);
-  assert.throws(() => parseCsv('a\n"oops'), /unterminated/);
-});
 
 test("prices: gaps, overlaps, open ends, bad dates, lookups and comparisons", () => {
   const ok = [{ charge: 1, activation: null, termination: "2025-01-01" }, { charge: 2, activation: "2025-01-01", termination: null }];
@@ -52,8 +46,6 @@ test("prices: gaps, overlaps, open ends, bad dates, lookups and comparisons", ()
   assert.deepEqual(timelineIssues([{ charge: 1, activation: null, termination: null }, { charge: 2, activation: "2025-01-01", termination: null }]).map(i => i.kind), ["overlap"]);
   assert.ok(timelineIssues([{ charge: 1, activation: "2025-13-45", termination: null }]).some(i => i.kind === "bad-date"));
   assert.ok(timelineIssues([{ charge: 1, activation: "2025-05-01", termination: "2025-05-01" }]).some(i => i.kind === "empty-period"));
-  assert.deepEqual(compareTimelines(ok, ok), []);
-  assert.deepEqual(compareTimelines(ok, [{ charge: 1.0004, activation: null, termination: "2025-01-01" }, { charge: 3, activation: "2025-01-01", termination: null }]).map(d => d.kind), ["value"]);
   assert.equal(steps([{ charge: 100, activation: null, termination: "2025-01-01" }, { charge: 110, activation: "2025-01-01", termination: null }])[0].pct, 10);
 });
 
@@ -65,7 +57,7 @@ test("rule keys: UPGRADE_x_TO_y", () => {
 test("catalog: the sample parses into the expected model", () => {
   const c = sample();
   assert.deepEqual([Object.keys(c.bundles), Object.keys(c.bases).sort()], [["NL_HOME_PLUS"], ["NL_BB", "NL_TV"]]);
-  assert.equal(Object.keys(c.featureGroups).length, 10); assert.equal(Object.keys(c.clusters).length, 11); assert.equal(c.offerRules.length, 4); assert.equal(c.csv.length, 4);
+  assert.equal(Object.keys(c.featureGroups).length, 10); assert.equal(Object.keys(c.clusters).length, 11); assert.equal(c.offerRules.length, 4);
   assert.equal(c.bundles.NL_HOME_PLUS.deps.length, 3); assert.equal(c.bundles.NL_HOME_PLUS.offerRefs.length, 2);
   const tm = c.tariffModels.NL_HOME_PLUS_TM.tariffs.find(t => t.component === "BUN_HOME_PLUS_2M_FREE");
   assert.deepEqual([tm.cluster, tm.parent, tm.validity], ["HOME_PLUS_FREE_OV", "HOME_PLUS", { value: 2, unit: "MONTHS" }]);
@@ -82,7 +74,7 @@ test("checks: every planted defect in the sample is found, and only there", () =
   assert.ok(find(f, "ref.bill-type", /DISCOUNT_BILL/).length === 1);
   assert.ok(find(f, "unused.cluster", /OLD_PROMO/).length === 1);
   assert.ok(find(f, "rule.name", /case only/).length === 1);
-  assert.ok(find(f, "csv.mismatch", /1299/).length >= 1);
+  assert.equal(f.filter(x => x.id.startsWith("csv")).length, 0, "prices.csv is ignored");
   assert.ok(find(f, "ref.tariff-model", /NL_TV_TM/).length === 1 && find(f, "ref.tariff-model")[0].severity === "info", "a model that lives elsewhere is a note, not a warning");
   assert.equal(f.filter(x => x.severity === "error").length, 3, f.filter(x => x.severity === "error").map(x => x.id).join());
   for (const clean of ["price.overlap", "price.bad-date", "price.empty-period", "ref.cluster", "key.duplicate", "file.unreadable"]) assert.equal(find(f, clean).length, 0, clean);
@@ -90,20 +82,20 @@ test("checks: every planted defect in the sample is found, and only there", () =
 
 test("checks: a defect-free package reports no errors or warnings", () => {
   const files = samplePackage(), enc = s => new TextEncoder().encode(s), dec = b => new TextDecoder().decode(b);
-  for (const k of [...files.keys()]) if (/OLD_PROMO|BUN_NOK_DISCOUNT|UPGRADE_NL_HOME_PLUS_TO_NL_HOME_MAX|UPGRADE_NL_LEGACY|prices\.csv|NL_TV|STATIC_IP/.test(k)) files.delete(k);
+  for (const k of [...files.keys()]) if (/OLD_PROMO|BUN_NOK_DISCOUNT|UPGRADE_NL_HOME_PLUS_TO_NL_HOME_MAX|UPGRADE_NL_LEGACY|NL_TV|STATIC_IP/.test(k)) files.delete(k);
   files.set("NL_HOME_PLUS/chargeClusters/HOME_PLUS_FREE_OV.xml", enc(dec(files.get("NL_HOME_PLUS/chargeClusters/HOME_PLUS_FREE_OV.xml")).replace("-1279", "-1299")));
   files.set("NL_HOME_PLUS/chargeClusters/BUN_SPORT_OV.xml", enc(dec(files.get("NL_HOME_PLUS/chargeClusters/BUN_SPORT_OV.xml")).replace("2025-08-01", "2025-06-01")));
   files.set("NL_HOME_PLUS/tariffModels/NL_HOME_PLUS_TM.xml", enc(dec(files.get("NL_HOME_PLUS/tariffModels/NL_HOME_PLUS_TM.xml")).replace(/<tariff><offerComponent>NOK_Discount[^]*?<\/tariff>/g, "").replace("<value>2</value><unit>MONTHS</unit></validityPeriod></tariff>\n      ", "<value>2</value><unit>MONTHS</unit></validityPeriod></tariff>\n      ")));
   const c = parsePackage(files), f = runChecks(c).filter(x => x.severity !== "info");
   const left = f.map(x => `${x.id}: ${x.message}`);
-  assert.ok(!left.some(l => /^(price|csv|rule|tax)\./.test(l)), left.join("\n"));
+  assert.ok(!left.some(l => /^(price|rule|tax)\./.test(l)), left.join("\n"));
 });
 
 test("checks: hostile package contents are reported, not thrown", () => {
-  const files = new Map([["x/bad.xml", "<a><b></a>"], ["x/prices.csv", 'a,b\n"x'], ["x/chargeClusters/c.xml", `<offerConfiguration><chargeClusters><chargeCluster><key>C</key><charges><charge><billTypeKey>B</billTypeKey><recurringCharge><key>C</key><timelineItems><timelineItem><charge>abc</charge><activation>nope</activation></timelineItem></timelineItems></recurringCharge></charge></charges></chargeCluster></chargeClusters></offerConfiguration>`], ["x/empty.xml", ""]]);
+  const files = new Map([["x/bad.xml", "<a><b></a>"], ["x/chargeClusters/c.xml", `<offerConfiguration><chargeClusters><chargeCluster><key>C</key><charges><charge><billTypeKey>B</billTypeKey><recurringCharge><key>C</key><timelineItems><timelineItem><charge>abc</charge><activation>nope</activation></timelineItem></timelineItems></recurringCharge></charge></charges></chargeCluster></chargeClusters></offerConfiguration>`], ["x/empty.xml", ""]]);
   const c = parsePackage(files), f = runChecks(c);
-  assert.equal(c.problems.length, 3);
-  assert.ok(find(f, "file.unreadable").length === 3 && find(f, "price.bad-date").length === 1);
+  assert.equal(c.problems.length, 2);
+  assert.ok(find(f, "file.unreadable").length === 2 && find(f, "price.bad-date").length === 1);
   assert.doesNotThrow(() => buildGraph(c));
 });
 

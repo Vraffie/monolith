@@ -1,5 +1,4 @@
 import { parseXml, kids, kid, txt } from "./xml.js";
-import { parseCsv } from "./csv.js";
 import { decodeText } from "./zip.js";
 
 // Turns the files of an offer-configuration package into one model. Parsing is tolerant (unknown elements are ignored);
@@ -34,12 +33,12 @@ function parseOffer(el, kind, file) {
 
 /** files: Map(path -> Uint8Array | string). Returns the catalogue model. */
 export function parsePackage(files) {
-  const c = { bundles: {}, bases: {}, featureGroups: {}, tariffModels: {}, clusters: {}, billTypes: {}, taxTypes: {}, offerRules: [], csv: [], files: [], problems: [], duplicates: [] };
+  const c = { bundles: {}, bases: {}, featureGroups: {}, tariffModels: {}, clusters: {}, billTypes: {}, taxTypes: {}, offerRules: [], files: [], problems: [], duplicates: [] };
   const put = (map, key, value, file) => { if (key === undefined) return; if (map[key]) c.duplicates.push({ key, file, other: map[key].file }); else map[key] = value; };
   for (const [path, data] of [...files].sort((a, b) => a[0].localeCompare(b[0]))) {
     const text = typeof data === "string" ? data : decodeText(data);
     c.files.push(path);
-    if (/\.csv$/i.test(path)) { try { c.csv.push(...parseCsv(text).map(r => ({ ...r, _file: path }))); } catch (e) { c.problems.push({ file: path, message: e.message }); } continue; }
+    if (/\.csv$/i.test(path)) continue;   // prices.csv is deliberately ignored: the XML timelines are the source of truth
     if (!/\.xml$/i.test(path)) continue;
     let root;
     try { root = parseXml(text); } catch (e) { c.problems.push({ file: path, message: "Not well-formed XML: " + e.message }); continue; }

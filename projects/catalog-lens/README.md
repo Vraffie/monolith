@@ -1,6 +1,6 @@
 # Catalog Lens
 
-An interactive graph and checker for product-catalogue offer packages (the XML + `prices.csv` layout used by Infonova-style billing catalogues): **offers → feature groups → charge clusters → bill types → tax**, plus up/downgrade rules, price timelines and consistency checks. Static files, no server, no dependencies; the package is read in your browser and never uploaded.
+An interactive graph and checker for product-catalogue offer packages (the XML layout used by Infonova-style billing catalogues): **offers → feature groups → charge clusters → bill types → tax**, plus up/downgrade rules, price timelines and consistency checks. Static files, no server, no dependencies; the package is read in your browser and never uploaded.
 
 ## Use it
 
@@ -32,11 +32,12 @@ Every charge with the amount in force on the chosen date, the next change (and i
 | References | tariff model, feature group, offer, charge cluster, bill type, tax type and dependency references resolve (case differences are flagged as typos; plain absences are notes because the thing may live in another file) |
 | Price timelines | bad dates, empty/inverted periods, overlaps, gaps, more than one open end, price cuts and jumps of 10 % or more, timelines that end |
 | Discounts | a free-months discount must cancel its parent price on every date; "…_3M_FREE" / "N_Months_Free" / "Discount_N_Months" features must have a validity period of N months |
-| `prices.csv` vs XML | per cluster, every period and amount; clusters missing from the CSV; key spelling |
 | Up/downgrade rules | the key (`UPGRADE_a_TO_b`) matches the file name, `isUpgrade` and `offerKey`; early-termination-fee handling that differs from the rest; missing reverse rule |
-| Hygiene | file name vs key, duplicate keys across files, unused clusters/bill types/groups/models, unreadable XML/CSV |
+| Hygiene | file name vs key, duplicate keys across files, unused clusters/bill types/groups/models, unreadable XML |
 
 Severity: **error** = the files contradict themselves; **warn** = probable mistake; **info** = worth knowing.
+
+`prices.csv` files in a package are ignored; the XML timelines are the source of truth.
 
 ## Command line
 

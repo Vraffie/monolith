@@ -55,7 +55,6 @@ export function samplePackage() {
   put("offerRules/DOWNGRADE_NL_HOME_PLUS_TO_NL_HOME.xml", rule("DOWNGRADE_NL_HOME_PLUS_TO_NL_HOME", false, "NL_HOME", "TOTAL"));
   put("offerRules/UPGRADE_NL_HOME_PLUS_TO_NL_HOME_MAX.xml", rule("UPGRADE_NL_HOME_PLUS_TO_NL_HOME_MAX", false, "NL_HOME_MAX", "WAIVED"));   // DEFECT: named UPGRADE but isUpgrade=false
   put("offerRules/UPGRADE_NL_LEGACY_TO_NL_HOME_PLUS.xml", rule("UPGRADE_NL_Legacy_TO_NL_HOME_PLUS", true, "NL_HOME_PLUS", "WAIVED"));   // key differs from the file name in case
-  put("prices/prices.csv", "chargeClusterKey,invoiceText,chargeType,activation,termination,charge\nHOME_PLUS,Home Plus,recurringCharge,,2025-01-01,1199\nHOME_PLUS,Home Plus,recurringCharge,2025-01-01,,1249\nBB_100,Broadband,recurringCharge,,2025-04-01,299\nBB_100,Broadband,recurringCharge,2025-04-01,,329\n");   // DEFECT: stale (misses the 2026 price)
   return new Map([...f].map(([k, v]) => [k, new TextEncoder().encode(v)]));
 }
 

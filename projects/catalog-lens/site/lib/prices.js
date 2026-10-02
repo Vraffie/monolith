@@ -36,17 +36,3 @@ export function steps(items) {
   for (let i = 1; i < s.length; i++) if (s[i - 1].charge) out.push({ date: s[i].activation, from: s[i - 1].charge, to: s[i].charge, pct: ((s[i].charge - s[i - 1].charge) / Math.abs(s[i - 1].charge)) * 100 });
   return out;
 }
-
-/** Compare the XML timeline of a cluster with rows of prices.csv (same cluster, same charge type). Returns [{kind, message}]. */
-export function compareTimelines(xmlItems, csvItems) {
-  const x = sorted(xmlItems), c = sorted(csvItems), out = [], eq = (a, b) => (a === null && b === null) || (a !== null && b !== null && Math.abs(a - b) < 0.0005);
-  const key = i => `${i.activation ?? "…"}→${i.termination ?? "…"}`;
-  const xm = new Map(x.map(i => [key(i), i])), cm = new Map(c.map(i => [key(i), i]));
-  for (const [k, i] of cm) {
-    const j = xm.get(k);
-    if (!j) out.push({ kind: "csv-only", message: `prices.csv has ${i.charge} for ${k}; the XML has no such period` });
-    else if (!eq(i.charge, j.charge)) out.push({ kind: "value", message: `${k}: prices.csv says ${i.charge}, the XML says ${j.charge}` });
-  }
-  for (const [k, j] of xm) if (!cm.has(k)) out.push({ kind: "xml-only", message: `the XML has ${j.charge} for ${k}; prices.csv does not list it` });
-  return out;
-}

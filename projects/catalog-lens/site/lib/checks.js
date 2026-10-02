@@ -1,5 +1,5 @@
 import { featureIndex, ruleMove, baseName } from "./catalog.js";
-import { timelineIssues, steps, itemAt, boundaries, compareTimelines } from "./prices.js";
+import { timelineIssues, steps, itemAt, boundaries } from "./prices.js";
 
 // The package is often one offer cut out of a bigger repository, so a reference to something that is not among the loaded files is
 // normal. Those are reported as warn/info ("not in the loaded files"); load more files and they resolve. Case differences are flagged.
@@ -99,24 +99,6 @@ export function runChecks(c, opts = {}) {
       if (di && pi && Math.abs(di.charge + pi.charge) > 0.005) { add("price.discount-cancel", "error", `chargeClusters/${t.cluster}`, `from ${date} "${t.cluster}" is ${di.charge} but its parent "${t.parent}" is ${pi.charge}: the free months do not cancel the price`); break; }
       if (di && !pi) { add("price.discount-cancel", "warn", `chargeClusters/${t.cluster}`, `from ${date} "${t.cluster}" has a price but its parent "${t.parent}" has none`); break; }
     }
-  }
-
-  // ---- prices.csv against the XML
-  if (c.csv.length) {
-    const byKey = new Map();
-    for (const r of c.csv) { const k = r.chargeClusterKey; if (!k) continue; (byKey.get(k) ?? byKey.set(k, []).get(k)).push(r); }
-    const lowerClusters = Object.fromEntries(Object.keys(c.clusters).map(k => [lower(k), k]));
-    for (const [key, rows] of byKey) {
-      const exact = c.clusters[key], match = exact ?? c.clusters[lowerClusters[lower(key)]];
-      if (!match) { add("csv.cluster", "warn", rows[0]._file, `prices.csv lists cluster "${key}", which is not in chargeClusters`); continue; }
-      if (!exact) add("csv.case", "warn", rows[0]._file, `prices.csv says "${key}" but the cluster is "${match.key}" (keys are case-sensitive)`);
-      const xml = match.charges.flatMap(ch => ch.items.map(i => ({ ...i, kind: ch.kind })));
-      const csvItems = rows.filter(r => r.charge !== "" && !Number.isNaN(Number(r.charge))).map(r => ({ charge: Number(r.charge), activation: r.activation || null, termination: r.termination || null }));
-      if (!csvItems.length) continue;
-      for (const d of compareTimelines(xml, csvItems)) add("csv.mismatch", d.kind === "value" ? "error" : "warn", `prices.csv ↔ chargeClusters/${match.key}`, d.message);
-    }
-    const absent = Object.values(c.clusters).filter(k => !byKey.has(k.key) && ![...byKey.keys()].some(x => lower(x) === lower(k.key)) && k.charges.some(ch => ch.kind === "recurringCharge" && ch.items.length)).map(k => k.key);
-    if (absent.length) add("csv.missing", "info", "prices.csv", `${absent.length} cluster(s) with prices in the XML have no rows in prices.csv: ${absent.join(", ")}`);
   }
 
   // ---- upgrade / downgrade rules
