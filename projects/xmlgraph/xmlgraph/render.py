@@ -20,8 +20,14 @@ def _q(s: str) -> str:
     return s.replace("\\", "\\\\").replace('"', '\\"')
 
 
-def to_mermaid(g: Graph, by_file: bool = False) -> str:
+def to_mermaid(g: Graph, by_file: bool = False, depth: int = 0) -> str:
     out = ["graph LR"]
+    if depth:
+        sizes, edges = g.group_edges(depth)
+        ids = {f: f"g{i}" for i, f in enumerate(sorted(sizes))}
+        out += [f'  {i}["{_q(f)} ({sizes[f]})"]' for f, i in ids.items()]
+        out += [f"  {ids[a]} -->|{n}| {ids[b]}" for (a, b), n in sorted(edges.items())]
+        return "\n".join(out) + "\n"
     if by_file:
         ids = {f: f"f{i}" for i, f in enumerate(g.files)}
         for f, i in ids.items():
@@ -42,9 +48,14 @@ def to_mermaid(g: Graph, by_file: bool = False) -> str:
     return "\n".join(out) + "\n"
 
 
-def to_dot(g: Graph, by_file: bool = False) -> str:
+def to_dot(g: Graph, by_file: bool = False, depth: int = 0) -> str:
     out = ["digraph xmlgraph {", "  rankdir=LR;", "  node [shape=box, fontname=Helvetica];"]
-    if by_file:
+    if depth:
+        sizes, edges = g.group_edges(depth)
+        ids = {f: f"g{i}" for i, f in enumerate(sorted(sizes))}
+        out += [f'  {i} [label="{_q(f)} ({sizes[f]})"];' for f, i in ids.items()]
+        out += [f'  {ids[a]} -> {ids[b]} [label="{n}"];' for (a, b), n in sorted(edges.items())]
+    elif by_file:
         ids = {f: f"f{i}" for i, f in enumerate(g.files)}
         for f, i in ids.items():
             out.append(f'  {i} [label="{_q(f)}"];')
@@ -107,7 +118,7 @@ h1{font-size:15px;margin:0 0 8px}h2{font-size:12px;color:var(--mut);margin:12px 
 li{margin:2px 0;cursor:pointer}li:hover{color:var(--acc)}ul{padding-left:18px;margin:0}code{font-size:12px;word-break:break-all}
 </style></head><body>
 <div id="main"><svg id="svg"><defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#8b94a8"/></marker></defs><g id="vp"></g></svg>
-<div id="bar"><input id="q" placeholder="Search key or type…"><select id="mode"><option value="entity">Entities</option><option value="file">Files</option></select><select id="type"></select><button id="fit">Fit</button></div></div>
+<div id="bar"><input id="q" placeholder="Search key or type…"><select id="mode"><option value="entity">Entities</option><option value="folder">Folders</option><option value="file">Files</option></select><select id="depth" title="Folder depth"><option value="1">depth 1</option><option value="2" selected>depth 2</option><option value="3">depth 3</option></select><select id="type"></select><button id="fit">Fit</button></div></div>
 <div id="side"><h1>__TITLE__</h1><div id="info">Click a node. Drag to move, scroll to zoom.</div></div>
 <script id="data" type="application/json">__DATA__</script>
 <script>
@@ -118,32 +129,43 @@ const types=[...new Set(D.nodes.map(n=>n.type))].sort();
 document.getElementById('type').innerHTML='<option value="">All types</option>'+types.map(t=>`<option>${t}</option>`).join('');
 function build(){
   const mode=mode_.value,tp=type_.value;let N,E;
-  if(mode==='file'){
+  const grp=(f,d)=>f?f.split('/').slice(0,-1).slice(0,d).join('/')||'.':'(unresolved)';
+  if(mode==='folder'){
+    const d=+depth_.value,c={},sz={};
+    D.nodes.forEach(n=>{if(n.file)sz[grp(n.file,d)]=(sz[grp(n.file,d)]||0)+1});
+    D.edges.forEach(e=>{const a=grp(nfile(e.source),d),b=grp(nfile(e.target),d);if(nfile(e.source)&&nfile(e.target)&&a!==b){const k=a+'\n'+b;c[k]=(c[k]||0)+1}});
+    N=Object.keys(sz).sort().map(f=>({id:f,label:f.split('/').slice(-2).join('/'),sub:sz[f]+' entities',group:f.split('/').slice(0,2).join('/')}));
+    E=Object.entries(c).map(([k,n])=>{const[s,t]=k.split('\n');return{s,t,label:n}});
+  }else if(mode==='file'){
     const c={};D.edges.forEach(e=>{const a=nid(e.source),b=nid(e.target);if(a&&b&&a!==b){const k=a+'\n'+b;c[k]=(c[k]||0)+1}});
-    N=D.files.map(f=>({id:f,label:f,sub:D.nodes.filter(n=>n.file===f).length+' entities',file:f}));
+    N=D.files.map(f=>({id:f,label:f.split('/').pop(),sub:grp(f,2)+' · '+D.nodes.filter(n=>n.file===f).length,file:f,group:grp(f,2)}));
     E=Object.entries(c).map(([k,n])=>{const[s,t]=k.split('\n');return{s,t,label:n>1?n:''}});
   }else{
     const keep=n=>!tp||n.type===tp;
-    N=D.nodes.filter(keep).map(n=>({id:n.id,label:n.key,sub:n.type,ext:n.external,file:n.file,n}));
+    N=D.nodes.filter(keep).map(n=>({id:n.id,label:n.key,sub:n.type,ext:n.external,file:n.file,n,group:grp(n.file,2)}));
     const ids=new Set(N.map(n=>n.id)),seen=new Set();E=[];
     D.edges.forEach(e=>{const k=e.source+e.target+e.via;if(ids.has(e.source)&&ids.has(e.target)&&!seen.has(k)){seen.add(k);E.push({s:e.source,t:e.target,label:e.via})}});
   }
-  const R=300,m=Object.fromEntries(N.map((n,i)=>[n.id,n]));
+  const R=Math.max(300,Math.sqrt(N.length)*60),m=Object.fromEntries(N.map((n,i)=>[n.id,n]));
   N.forEach((n,i)=>{const a=i/N.length*6.283;n.x=Math.cos(a)*R*(1+(i%3)*.3);n.y=Math.sin(a)*R*(1+(i%3)*.3);n.vx=n.vy=0;n.w=Math.max(60,Math.min(n.label.length,28)*6.6+16)});
   nodes=N;edges=E.map(e=>({...e,a:m[e.s],b:m[e.t]})).filter(e=>e.a&&e.b);
   vp.replaceChildren();
   edges.forEach(e=>{e.el=el('path',{class:'edge','marker-end':'url(#ar)'},vp)});
-  nodes.forEach(n=>{const g=el('g',{class:'node'+(n.ext?' ext':'')},vp);el('rect',{width:n.w,height:34,x:-n.w/2,y:-17,rx:6},g);
+  nodes.forEach(n=>{const g=el('g',{class:'node'+(n.ext?' ext':'')},vp);el('rect',{width:n.w,height:34,x:-n.w/2,y:-17,rx:6,style:n.ext?'':`fill:${col(n.group)}`},g);
     const t=el('text',{'text-anchor':'middle',y:-2},g);t.textContent=n.label.length>28?n.label.slice(0,27)+'…':n.label;
     const s=el('text',{'text-anchor':'middle',y:11,style:'fill:var(--mut);font-size:9px'},g);s.textContent=n.sub;
     g.onclick=ev=>{ev.stopPropagation();select(n)};drag(g,n);n.el=g});
   sel=null;alpha=1;tick();
 }
-function nid(id){const n=D.nodes.find(x=>x.id===id);return n&&n.file}
+const NF=Object.fromEntries(D.nodes.map(n=>[n.id,n.file]));
+function nid(id){return NF[id]}
+function nfile(id){return NF[id]}
+function col(g){let h=0;for(const c of g)h=(h*31+c.charCodeAt(0))%360;const dk=matchMedia('(prefers-color-scheme:dark)').matches;return`hsl(${h} 55% ${dk?24:90}%)`}
 let alpha=1;
 function tick(){
   if(alpha>0.01){
-    for(const a of nodes)for(const b of nodes){if(a===b)continue;let dx=a.x-b.x,dy=a.y-b.y,d=dx*dx+dy*dy+.01;if(d<90000){const f=5000/d;a.vx+=dx*f*.02;a.vy+=dy*f*.02}}
+    const C=300,grid=new Map();for(const n of nodes){const k=Math.floor(n.x/C)+','+Math.floor(n.y/C);(grid.get(k)||grid.set(k,[]).get(k)).push(n)}
+    for(const a of nodes){const cx=Math.floor(a.x/C),cy=Math.floor(a.y/C);for(let i=-1;i<=1;i++)for(let j=-1;j<=1;j++)for(const b of grid.get((cx+i)+','+(cy+j))||[]){if(a===b)continue;let dx=a.x-b.x,dy=a.y-b.y,d=dx*dx+dy*dy+.01;if(d<90000){const f=5000/d;a.vx+=dx*f*.02;a.vy+=dy*f*.02}}}
     for(const e of edges){const dx=e.b.x-e.a.x,dy=e.b.y-e.a.y,d=Math.hypot(dx,dy)||1,f=(d-160)*.01;e.a.vx+=dx/d*f;e.a.vy+=dy/d*f;e.b.vx-=dx/d*f;e.b.vy-=dy/d*f}
     for(const n of nodes){n.vx-=n.x*.002;n.vy-=n.y*.002;if(!n.fx){n.x+=n.vx*alpha;n.y+=n.vy*alpha}n.vx*=.6;n.vy*=.6}
     alpha*=.985;
@@ -161,7 +183,7 @@ function select(n){
   edges.forEach(e=>{const h=e.a===n||e.b===n;e.el.classList.toggle('hl',h);e.el.classList.toggle('dim',!h);if(h){nb.add(e.s);nb.add(e.t)}});
   nodes.forEach(x=>{x.el.classList.toggle('sel',x===n);x.el.classList.toggle('dim',!nb.has(x.id))});
   const out=edges.filter(e=>e.a===n),inn=edges.filter(e=>e.b===n),li=(l,f)=>l.length?'<ul>'+l.map(f).join('')+'</ul>':'<i>none</i>';
-  const meta=n.n?`<code>${n.n.file||'(not found in scanned files)'}</code><br><code>${n.n.path}</code>`:`<code>${n.file}</code>`;
+  const meta=n.n?`<code>${n.n.file||'(not found in scanned files)'}</code><br><code>${n.n.path}</code>`:(n.file?`<code>${n.file}</code>`:"");
   info.innerHTML=`<b>${n.label}</b> <span style="color:var(--mut)">${n.sub}</span><br>${meta}<h2>References (${out.length})</h2>${li(out,e=>`<li data-id="${e.t}">${e.label?e.label+' → ':''}${e.b.label}</li>`)}<h2>Referenced by (${inn.length})</h2>${li(inn,e=>`<li data-id="${e.s}">${e.a.label}${e.label?' ('+e.label+')':''}</li>`)}`;
   info.querySelectorAll('li').forEach(l=>l.onclick=()=>select(nodes.find(x=>x.id===l.dataset.id)));
 }
@@ -173,8 +195,8 @@ svg.onpointerdown=ev=>{clear();svg.onpointermove=m=>{tf.x+=m.movementX;tf.y+=m.m
 svg.onwheel=ev=>{ev.preventDefault();const r=svg.getBoundingClientRect(),f=ev.deltaY<0?1.1:.9,mx=ev.clientX-r.left,my=ev.clientY-r.top;tf.x=mx-(mx-tf.x)*f;tf.y=my-(my-tf.y)*f;tf.k*=f;draw()};
 function fit(){const r=svg.getBoundingClientRect();if(!nodes.length)return;const xs=nodes.map(n=>n.x),ys=nodes.map(n=>n.y),x0=Math.min(...xs)-80,x1=Math.max(...xs)+80,y0=Math.min(...ys)-40,y1=Math.max(...ys)+40;
   tf.k=Math.min(r.width/(x1-x0),r.height/(y1-y0),1.5);tf.x=r.width/2-(x0+x1)/2*tf.k;tf.y=r.height/2-(y0+y1)/2*tf.k;draw()}
-const mode_=document.getElementById('mode'),type_=document.getElementById('type'),info=document.getElementById('info');
-mode_.onchange=type_.onchange=()=>{build();setTimeout(fit,600)};
+const depth_=document.getElementById('depth'),mode_=document.getElementById('mode'),type_=document.getElementById('type'),info=document.getElementById('info');
+mode_.onchange=type_.onchange=depth_.onchange=()=>{build();setTimeout(fit,600)};
 document.getElementById('fit').onclick=fit;
 document.getElementById('q').oninput=ev=>{const q=ev.target.value.toLowerCase();nodes.forEach(n=>n.el.classList.toggle('dim',!!q&&!(n.label+' '+n.sub).toLowerCase().includes(q)))};
 build();setTimeout(fit,800);

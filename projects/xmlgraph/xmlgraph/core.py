@@ -45,6 +45,23 @@ class Graph:
     files: list[str] = field(default_factory=list)
     errors: dict[str, str] = field(default_factory=dict)
 
+    def group_edges(self, depth: int = 2) -> tuple[dict[str, int], dict[tuple[str, str], int]]:
+        """Entity counts per folder and reference counts between folders (first ``depth`` segments)."""
+        def grp(f: str) -> str:
+            return "/".join(f.split("/")[:-1][:depth]) or "."
+
+        sizes: dict[str, int] = {}
+        for n in self.nodes.values():
+            if n.file:
+                sizes[grp(n.file)] = sizes.get(grp(n.file), 0) + 1
+        out: dict[tuple[str, str], int] = {}
+        for e in self.edges:
+            a, b = self.nodes[e.source].file, self.nodes[e.target].file
+            if a and b and grp(a) != grp(b):
+                k = (grp(a), grp(b))
+                out[k] = out.get(k, 0) + 1
+        return sizes, out
+
     def file_edges(self) -> dict[tuple[str, str], int]:
         """Edge counts between files (self-links and external targets excluded)."""
         out: dict[tuple[str, str], int] = {}
@@ -80,7 +97,7 @@ def scan(root: str, key_tag: str = "key", ref_suffix: str = "Key") -> Graph:
 
     # refs: (source node id | None, ref tag, wanted type, value, file, path)
     refs: list[tuple[str | None, str, str, str, str, str]] = []
-    by_key: dict[tuple[str, str], str] = {}
+    by_key: dict[tuple[str, str], list[str]] = {}
 
     for p in paths:
         rel = os.path.relpath(p, base).replace(os.sep, "/")
@@ -93,7 +110,7 @@ def scan(root: str, key_tag: str = "key", ref_suffix: str = "Key") -> Graph:
         _walk(tree, rel, [], None, g, refs, by_key, key_tag, ref_suffix)
 
     for src, via, typ, value, rel, path in refs:
-        target = _resolve(typ, value, by_key)
+        target = _resolve(typ, value, by_key, g, rel)
         if target is None:
             tid = f"?{typ}:{value}"
             g.nodes.setdefault(tid, Node(tid, typ, value, external=True))
@@ -114,7 +131,7 @@ def _walk(el, rel, trail, owner, g, refs, by_key, key_tag, ref_suffix):
         nid = f"{rel}::{tag}:{key}"
         if nid not in g.nodes:
             g.nodes[nid] = Node(nid, tag, key, rel, path)
-            by_key.setdefault((tag.lower(), key), nid)
+            by_key.setdefault((tag.lower(), key), []).append(nid)
         owner = nid
 
     for child in el:
@@ -129,12 +146,28 @@ def _walk(el, rel, trail, owner, g, refs, by_key, key_tag, ref_suffix):
             _walk(child, rel, trail, owner, g, refs, by_key, key_tag, ref_suffix)
 
 
-def _resolve(typ: str, value: str, by_key: dict[tuple[str, str], str]) -> str | None:
+def _closeness(g: Graph, nid: str, src_file: str) -> int:
+    """Number of leading path segments shared with the referencing file."""
+    n = 0
+    for x, y in zip((g.nodes[nid].file or "").split("/")[:-1], src_file.split("/")[:-1]):
+        if x != y:
+            break
+        n += 1
+    return n
+
+
+def _resolve(typ, value, by_key, g, src_file):
+    """Pick the definition a reference points at.
+
+    Same key defined in several trees (``portfolio/`` and ``wholesale/``) resolves to
+    the one sharing the longest folder prefix with the referencing file.
+    """
     t = typ.lower()
-    hit = by_key.get((t, value))
-    if hit:
-        return hit
-    # Tolerate naming drift such as ``resourceSpecificationGroupKey`` ->
-    # ``resourceSpecificationGroupReference`` or ``featureGroup`` -> ``featureGroupDefinition``.
-    cands = {nid for (tag, k), nid in by_key.items() if k == value and (tag.startswith(t) or t.startswith(tag))}
-    return cands.pop() if len(cands) == 1 else None
+    cands = list(by_key.get((t, value), []))
+    if not cands:
+        # Tolerate naming drift such as ``resourceSpecificationGroupKey`` ->
+        # ``resourceSpecificationGroupReference``.
+        cands = [nid for (tag, k), ids in by_key.items() if k == value and (tag.startswith(t) or t.startswith(tag)) for nid in ids]
+    if not cands:
+        return None
+    return max(cands, key=lambda nid: _closeness(g, nid, src_file))

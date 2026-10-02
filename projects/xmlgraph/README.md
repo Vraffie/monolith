@@ -20,6 +20,8 @@ python -m xmlgraph path/to/repo -f dot --files       # Graphviz, one node per fi
 python -m xmlgraph path/to/repo -f json              # raw nodes/edges
 ```
 
+Large repositories: use the **Folders** view (depth 2 groups by e.g. `portfolio/baseOffers`) to see the overall shape, then switch to **Entities** and filter by type. Nodes are coloured by top-level folder. If the same key exists in several trees (`portfolio/` and `wholesale/`), a reference resolves to the definition sharing the longest folder prefix with the referencing file. For Mermaid/DOT, `--depth N` gives the folder-level graph.
+
 The HTML viewer has search, a type filter, an entity/file toggle, drag, zoom, and a side panel listing what a node references and what references it. `--key-tag` and `--ref-suffix` adapt the conventions to other schemas.
 
 Try it: `python -m xmlgraph examples -o /tmp/g.html`. Tests: `python -m unittest discover -s tests`.

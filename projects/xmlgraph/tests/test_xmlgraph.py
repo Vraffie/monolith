@@ -47,6 +47,25 @@ class ScanTests(unittest.TestCase):
         self.assertIn("bad.xml", g.errors)
 
 
+class ProximityTests(unittest.TestCase):
+    def test_same_key_in_two_trees_resolves_locally(self):
+        with tempfile.TemporaryDirectory() as d:
+            for tree in ("portfolio", "wholesale"):
+                os.makedirs(f"{d}/{tree}")
+                with open(f"{d}/{tree}/a.xml", "w") as fh:
+                    fh.write("<r><tariffModel><key>TM</key></tariffModel>"
+                             "<offer><key>O</key><tariffModelKey>TM</tariffModelKey></offer></r>")
+            g = scan(d)
+        for e in g.edges:
+            self.assertEqual(g.nodes[e.source].file, g.nodes[e.target].file)
+        self.assertEqual(len(g.edges), 2)
+
+    def test_group_edges(self):
+        sizes, edges = scan(EX).group_edges(1)
+        self.assertEqual(sizes, {".": 6})  # examples/ files sit at the root of the scan
+        self.assertEqual(edges, {})
+
+
 class RenderTests(unittest.TestCase):
     def test_outputs(self):
         g = scan(EX)
