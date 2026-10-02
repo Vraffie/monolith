@@ -89,3 +89,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker build -t hitchly projects/hitchly
+
+  games:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: projects/games
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test "tests/*.test.mjs"
+      - run: npm install --no-save playwright && npx playwright install --with-deps chromium
+      - name: Play every game in a real browser
+        run: |
+          python3 -m http.server 8090 -d site &
+          sleep 1
+          node tests/e2e/games.cjs

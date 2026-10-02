@@ -1,0 +1,88 @@
+# Fours puzzles. One puzzle = four lines "Title | w1 w2 w3 w4" (easiest first), puzzles separated by a blank line.
+# Make one or two words fit a second group (a red herring) but keep exactly one valid solution.
+# Check and compile with: python3 tools/build_fours.py
+
+Musical instruments | violin flute trumpet cello
+Fish | salmon trout cod tuna
+Things with keys | piano keyboard lock map
+Words before "fly" | butter dragon fire house
+
+Planets | venus saturn jupiter neptune
+Chocolate bars | twix snickers bounty mars
+Greek letters | alpha beta gamma delta
+Roman gods | mercury juno vulcan ceres
+
+Fruits | banana cherry grape plum
+Colours | orange lime cyan teal
+Tech companies | apple amazon oracle meta
+Words before "berry" | straw blue rasp black
+
+Kitchen tools | whisk spatula ladle grater
+Garden tools | rake hoe shears trowel
+Card suits | spade heart club diamond
+Things you can pitch | tent ball idea camp
+
+Dog breeds | poodle beagle boxer husky
+Boxing terms | jab hook uppercut knockout
+Fishing gear | line sinker rod reel
+Things that ring | bell phone alarm doorbell
+
+Navy ranks | admiral captain commander ensign
+Ship parts | deck bow stern hull
+Shades of blue | azure cobalt navy sky
+Things that sink | stone anchor spirits heart
+
+Seasons | summer autumn winter spring
+Ways to jump | leap hop bound vault
+Water sources | well fountain tap stream
+Coiled things | snake rope hose cable
+
+Golf clubs | iron driver wedge putter
+Metals | copper tin zinc lead
+Things you can press | button flowers garlic grapes
+Words before "smith" | gold black silver word
+
+Footwear | sandal slipper loafer trainer
+Car parts | boot bonnet bumper clutch
+Things with a tongue | shoe bell wagon flame
+Things you can kick | habit bucket can ball
+
+Cooking verbs | boil fry bake roast
+Things you can break | rule heart bread promise
+Things you can set | table alarm trap record
+Things that run | nose river engine campaign
+
+Chess pieces | rook knight bishop pawn
+Nobility | duke baron earl count
+Playing cards | king queen jack ace
+Things with a crown | tooth tree hat head
+
+Pasta | penne fusilli linguine macaroni
+Italian cities | rome milan venice naples
+Italian desserts | gelato tiramisu cannoli biscotti
+Italian words used in English | piano opera umbrella graffiti
+
+Parts of the eye | iris pupil retina cornea
+Camera parts | lens shutter flash tripod
+Words after "blind" | date spot alley faith
+Words before "storm" | brain thunder snow sand
+
+Farm animals | cow sheep pig goat
+Male animals | bull ram stag rooster
+Things with horns | devil rhino unicorn viking
+Found in a barn | hay silo tractor pitchfork
+
+Units of time | second minute hour week
+Tiny | tiny mini petite wee
+A very short time | jiffy flash blink moment
+Parts of a clock | hand face pendulum chime
+
+Programming languages | python java ruby swift
+Snakes | cobra viper adder mamba
+Gems | pearl opal jade garnet
+Fast | quick rapid speedy hasty
+
+Breads | baguette bagel pretzel naan
+Hairstyles | braid ponytail bun bob
+Things you can roll | dice sushi dough thunder
+Things you can toss | coin salad pancake caber
