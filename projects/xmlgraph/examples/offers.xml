@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<offerConfiguration xmlns="http://www.infonova.com/product/model">
+  <baseOffers>
+    <baseOffer isOrderableStandAlone="true">
+      <key>RES_STANDALONE</key>
+      <tariffModelKey>RES_STANDALONE_TM</tariffModelKey>
+      <featureGroupReferences>
+        <featureGroupReference><featureGroupKey>RES_SHIPPING</featureGroupKey></featureGroupReference>
+        <featureGroupReference><featureGroupKey>GOOGLE_NEST_SHIPPING</featureGroupKey></featureGroupReference>
+      </featureGroupReferences>
+      <ruleReferences>
+        <ruleReference><ruleTypeKey>CUSTOMER_TYPE_RESTRICTION</ruleTypeKey><ruleKey>RESIDENTIAL</ruleKey></ruleReference>
+      </ruleReferences>
+      <resourceSpecificationGroupReferences>
+        <resourceSpecificationGroupReference>
+          <key>NEW_ONT</key>
+          <resourceSpecificationGroupKey>NEW_ONT</resourceSpecificationGroupKey>
+        </resourceSpecificationGroupReference>
+      </resourceSpecificationGroupReferences>
+    </baseOffer>
+  </baseOffers>
+</offerConfiguration>

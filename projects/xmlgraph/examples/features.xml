@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<featureConfiguration xmlns="http://www.infonova.com/product/model">
+  <featureGroup><key>RES_SHIPPING</key><displayName>Shipping</displayName></featureGroup>
+  <featureGroup><key>GOOGLE_NEST_SHIPPING</key><ruleKey>RESIDENTIAL</ruleKey></featureGroup>
+  <rule><key>RESIDENTIAL</key></rule>
+</featureConfiguration>
